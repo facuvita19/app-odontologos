@@ -1,0 +1,16 @@
+# Configuracion privada de MySQL
+database.properties
+
+# Archivos generados por Maven
+target/
+
+# Datos locales de la version anterior
+pacientes.txt
+odontologos.txt
+usuarios.txt
+turnos.txt
+
+# Archivos temporales
+*.log
+*.tmp
+/bin/
