@@ -135,16 +135,17 @@ public class PanelPrincipalUsuario extends JPanel {
                 "Turnos"
         );
 
-        itemMisDatos = crearItemMenu(
-                "Mis datos"
-        );
+        itemMisDatos =
+                crearItemMenu(
+                        "Datos personales"
+                );
 
         itemNuevoTurno = crearItemMenu(
                 "Nuevo turno"
         );
 
         itemMisTurnos = crearItemMenu(
-                "Mis turnos"
+                "Turnos reservados"
         );
 
         itemCerrarSesion = crearItemMenu(
@@ -351,7 +352,7 @@ public class PanelPrincipalUsuario extends JPanel {
 
         btnMisDatos =
                 crearTarjetaAccion(
-                        "Mis datos",
+                        "Datos personales",
                         "Consultar o modificar "
                                 + "su información personal",
                         EstilosUI.COLOR_PRIMARIO
@@ -367,7 +368,7 @@ public class PanelPrincipalUsuario extends JPanel {
 
         btnMisTurnos =
                 crearTarjetaAccion(
-                        "Mis turnos",
+                        "Turnos reservados",
                         "Consultar, modificar o cancelar "
                                 + "sus reservas",
                         new Color(
@@ -438,11 +439,16 @@ public class PanelPrincipalUsuario extends JPanel {
             String descripcion,
             Color colorAcento) {
 
-        String textoHtml =
+    	String tituloHtml =
+    	        titulo.replace(
+    	                " ",
+    	                "&nbsp;"
+    	        );
+    	String textoHtml =
                 "<html>"
                 + "<div style='text-align:left;'>"
                 + "<span style='font-size:17px;'>"
-                + titulo
+                + tituloHtml
                 + "</span>"
                 + "<br><br>"
                 + "<span style='font-size:12px;"

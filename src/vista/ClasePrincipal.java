@@ -1,26 +1,22 @@
 package vista;
 
-import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 
-public class ClasePrincipal extends JFrame {
+public final class ClasePrincipal {
 
-	private static final long serialVersionUID = 1L;
-	private PanelManager manager;
+    private ClasePrincipal() {
+    }
 
     public static void main(String[] args) {
-        ClasePrincipal ppal = new ClasePrincipal();
-        ppal.iniciarManager();
-        ppal.showFrame();
-    }
+        SwingUtilities.invokeLater(
+                () -> {
+                    PanelManager manager =
+                            new PanelManager();
 
-    public void iniciarManager() {
-        manager = new PanelManager();
-        manager.armarManager();
-        manager.mostrarPanelLogin();
+                    manager.armarManager();
+                    manager.mostrarPanelLogin();
+                    manager.showFrame();
+                }
+        );
     }
-
-    public void showFrame() {
-        manager.showFrame();
-    }
-
 }
