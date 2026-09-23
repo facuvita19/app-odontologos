@@ -6,24 +6,35 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.RowFilter;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 
 import negocio.EstadoTurno;
 import negocio.Turno;
@@ -36,6 +47,12 @@ public class PanelListaTurnosAdmin extends JPanel {
     private JTable tabla;
     private DefaultTableModel contenidoTabla;
     private JScrollPane scrollPane;
+    private TableRowSorter<DefaultTableModel> ordenador;
+
+    private JTextField txtBuscar;
+    private JComboBox<String> comboFiltroEstado;
+    private JButton btnLimpiarFiltros;
+    private JLabel lblContadorResultados;
 
     private JButton btnCrear;
     private JButton btnModificar;
@@ -59,39 +76,26 @@ public class PanelListaTurnosAdmin extends JPanel {
             String usuario) {
 
         removeAll();
-
         setLayout(new BorderLayout());
         setBackground(EstilosUI.FONDO_PRINCIPAL);
-
-        JPanel encabezado =
-                crearEncabezado();
 
         crearTabla();
         cargarTurnos();
 
-        JPanel panelInferior =
-                crearPanelInferior();
-
-        add(
-                encabezado,
-                BorderLayout.NORTH
-        );
-
-        add(
-                crearContenidoTabla(),
-                BorderLayout.CENTER
-        );
-
-        add(
-                panelInferior,
-                BorderLayout.SOUTH
-        );
+        add(crearEncabezado(), BorderLayout.NORTH);
+        add(crearPanelCentral(), BorderLayout.CENTER);
+        add(crearPanelInferior(), BorderLayout.SOUTH);
 
         configurarEventos(usuario);
+        actualizarContadorResultados();
 
         revalidate();
         repaint();
         setVisible(true);
+
+        SwingUtilities.invokeLater(
+                () -> txtBuscar.requestFocusInWindow()
+        );
     }
 
     private JPanel crearEncabezado() {
@@ -112,15 +116,14 @@ public class PanelListaTurnosAdmin extends JPanel {
                 new EmptyBorder(
                         18,
                         22,
-                        14,
+                        12,
                         22
                 )
         );
 
-        JLabel titulo =
-                new JLabel(
-                        "Administración de turnos"
-                );
+        JLabel titulo = new JLabel(
+                "Administración de turnos"
+        );
 
         titulo.setFont(
                 EstilosUI.FUENTE_TITULO
@@ -134,11 +137,10 @@ public class PanelListaTurnosAdmin extends JPanel {
                 Component.LEFT_ALIGNMENT
         );
 
-        JLabel subtitulo =
-                new JLabel(
-                        "Consulte reservas, modifique horarios "
-                                + "y gestione el estado de atención"
-                );
+        JLabel subtitulo = new JLabel(
+                "Consulte reservas, modifique horarios "
+                        + "y gestione el estado de atención"
+        );
 
         subtitulo.setFont(
                 EstilosUI.FUENTE_NORMAL
@@ -153,14 +155,186 @@ public class PanelListaTurnosAdmin extends JPanel {
         );
 
         encabezado.add(titulo);
-
-        encabezado.add(
-                Box.createVerticalStrut(6)
-        );
-
+        encabezado.add(Box.createVerticalStrut(6));
         encabezado.add(subtitulo);
 
         return encabezado;
+    }
+
+    private JPanel crearPanelCentral() {
+        JPanel panelCentral = new JPanel(
+                new BorderLayout()
+        );
+
+        panelCentral.setBackground(
+                EstilosUI.FONDO_PRINCIPAL
+        );
+
+        panelCentral.add(
+                crearPanelFiltros(),
+                BorderLayout.NORTH
+        );
+
+        panelCentral.add(
+                crearContenidoTabla(),
+                BorderLayout.CENTER
+        );
+
+        return panelCentral;
+    }
+
+    private JPanel crearPanelFiltros() {
+        JPanel contenedor = new JPanel(
+                new BorderLayout(15, 8)
+        );
+
+        contenedor.setBackground(
+                EstilosUI.FONDO_PRINCIPAL
+        );
+
+        contenedor.setBorder(
+                new EmptyBorder(0, 20, 10, 20)
+        );
+
+        JPanel controles = new JPanel(
+                new FlowLayout(
+                        FlowLayout.LEFT,
+                        10,
+                        0
+                )
+        );
+
+        controles.setOpaque(false);
+
+        JLabel lblBuscar =
+                EstilosUI.crearEtiqueta("Buscar:");
+
+        txtBuscar = new JTextField(18);
+        EstilosUI.prepararCampo(txtBuscar);
+        txtBuscar.setToolTipText(
+                "Buscar por paciente u odontólogo"
+        );
+
+        JLabel lblEstado =
+                EstilosUI.crearEtiqueta("Estado:");
+
+        comboFiltroEstado = new JComboBox<>(
+                new String[]{
+                        "Todos",
+                        "Pendiente",
+                        "Confirmado",
+                        "Atendido",
+                        "Cancelado",
+                        "Ausente"
+                }
+        );
+
+        prepararComboFiltroEstado();
+
+        btnLimpiarFiltros =
+                EstilosUI.crearBotonSecundario(
+                        "Limpiar filtros"
+                );
+
+        controles.add(lblBuscar);
+        controles.add(txtBuscar);
+        controles.add(lblEstado);
+        controles.add(comboFiltroEstado);
+        controles.add(btnLimpiarFiltros);
+
+        lblContadorResultados = new JLabel(
+                "Mostrando 0 de 0 turnos"
+        );
+
+        lblContadorResultados.setFont(
+                EstilosUI.FUENTE_NORMAL
+        );
+
+        lblContadorResultados.setForeground(
+                EstilosUI.TEXTO_SECUNDARIO
+        );
+
+        lblContadorResultados.setHorizontalAlignment(
+                SwingConstants.RIGHT
+        );
+
+        contenedor.add(
+                controles,
+                BorderLayout.WEST
+        );
+
+        contenedor.add(
+                lblContadorResultados,
+                BorderLayout.EAST
+        );
+
+        return contenedor;
+    }
+
+    private void prepararComboFiltroEstado() {
+        comboFiltroEstado.setFont(
+                EstilosUI.FUENTE_NORMAL
+        );
+
+        comboFiltroEstado.setForeground(
+                EstilosUI.TEXTO_PRINCIPAL
+        );
+
+        comboFiltroEstado.setBackground(
+                EstilosUI.FONDO_SECUNDARIO
+        );
+
+        comboFiltroEstado.setPreferredSize(
+                new Dimension(130, 36)
+        );
+
+        comboFiltroEstado.setRenderer(
+                crearRendererCombo()
+        );
+    }
+
+    private DefaultListCellRenderer crearRendererCombo() {
+        return new DefaultListCellRenderer() {
+
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Component getListCellRendererComponent(
+                    JList<?> lista,
+                    Object valor,
+                    int indice,
+                    boolean seleccionado,
+                    boolean tieneFoco) {
+
+                super.getListCellRendererComponent(
+                        lista,
+                        valor,
+                        indice,
+                        seleccionado,
+                        tieneFoco
+                );
+
+                if (seleccionado) {
+                    setBackground(
+                            EstilosUI.COLOR_PRIMARIO
+                    );
+                    setForeground(Color.WHITE);
+                } else {
+                    setBackground(
+                            EstilosUI.FONDO_SECUNDARIO
+                    );
+                    setForeground(
+                            EstilosUI.TEXTO_PRINCIPAL
+                    );
+                }
+
+                setBorder(
+                        new EmptyBorder(5, 8, 5, 8)
+                );
+
+                return this;
+            }
+        };
     }
 
     private void crearTabla() {
@@ -187,10 +361,28 @@ public class PanelListaTurnosAdmin extends JPanel {
 
                 return false;
             }
+
+            @Override
+            public Class<?> getColumnClass(
+                    int columna) {
+
+                if (columna == 0
+                        || columna == 4
+                        || columna == 5
+                        || columna == 6) {
+
+                    return Number.class;
+                }
+
+                if (columna == 3) {
+                    return EstadoTurno.class;
+                }
+
+                return String.class;
+            }
         };
 
         tabla = new JTable(contenidoTabla);
-
         EstilosUI.prepararTabla(tabla);
         configurarAlineacionTabla();
 
@@ -200,13 +392,15 @@ public class PanelListaTurnosAdmin extends JPanel {
 
         tabla.setFillsViewportHeight(true);
 
+        ordenador = new TableRowSorter<>(
+                contenidoTabla
+        );
+
+        tabla.setRowSorter(ordenador);
+
         definirAnchoColumnas();
 
         scrollPane = new JScrollPane(tabla);
-
-        scrollPane.getViewport().setBackground(
-                EstilosUI.FONDO_SECUNDARIO
-        );
 
         scrollPane.setBorder(
                 BorderFactory.createLineBorder(
@@ -230,6 +424,7 @@ public class PanelListaTurnosAdmin extends JPanel {
                 EstilosUI.FONDO_SECUNDARIO
         );
     }
+
     private void configurarAlineacionTabla() {
         DefaultTableCellRenderer encabezadoCentrado =
                 (DefaultTableCellRenderer)
@@ -253,11 +448,10 @@ public class PanelListaTurnosAdmin extends JPanel {
 
             tabla.getColumnModel()
                     .getColumn(columna)
-                    .setCellRenderer(
-                            celdasCentradas
-                    );
+                    .setCellRenderer(celdasCentradas);
         }
     }
+
     private JPanel crearContenidoTabla() {
         JPanel contenedor = new JPanel(
                 new BorderLayout()
@@ -268,12 +462,7 @@ public class PanelListaTurnosAdmin extends JPanel {
         );
 
         contenedor.setBorder(
-                new EmptyBorder(
-                        0,
-                        20,
-                        0,
-                        20
-                )
+                new EmptyBorder(0, 20, 0, 20)
         );
 
         contenedor.add(
@@ -323,12 +512,10 @@ public class PanelListaTurnosAdmin extends JPanel {
     }
 
     private void cargarTurnos() {
-        List<Turno> turnos =
-                turnoService.listar();
+        List<Turno> turnos = turnoService.listar();
 
         for (Turno turno : turnos) {
-            EstadoTurno estado =
-                    turno.getEstado();
+            EstadoTurno estado = turno.getEstado();
 
             if (estado == null) {
                 estado = EstadoTurno.PENDIENTE;
@@ -378,27 +565,16 @@ public class PanelListaTurnosAdmin extends JPanel {
         );
 
         contenedor.setBorder(
-                new EmptyBorder(
-                        10,
-                        20,
-                        10,
-                        20
-                )
+                new EmptyBorder(10, 20, 10, 20)
         );
 
-        JPanel accionesPrincipales =
-                crearAccionesPrincipales();
-
-        JPanel accionesEstado =
-                crearAccionesEstado();
-
         contenedor.add(
-                accionesPrincipales,
+                crearAccionesPrincipales(),
                 BorderLayout.WEST
         );
 
         contenedor.add(
-                accionesEstado,
+                crearAccionesEstado(),
                 BorderLayout.EAST
         );
 
@@ -416,25 +592,21 @@ public class PanelListaTurnosAdmin extends JPanel {
 
         panel.setOpaque(false);
 
-        btnCrear =
-                EstilosUI.crearBotonPrimario(
-                        "Nuevo turno"
-                );
+        btnCrear = EstilosUI.crearBotonPrimario(
+                "Nuevo turno"
+        );
 
-        btnModificar =
-                EstilosUI.crearBotonSecundario(
-                        "Modificar"
-                );
+        btnModificar = EstilosUI.crearBotonSecundario(
+                "Modificar"
+        );
 
-        btnCancelarTurno =
-                EstilosUI.crearBotonPeligro(
-                        "Cancelar turno"
-                );
+        btnCancelarTurno = EstilosUI.crearBotonPeligro(
+                "Cancelar turno"
+        );
 
-        btnVolver =
-                EstilosUI.crearBotonSecundario(
-                        "Volver"
-                );
+        btnVolver = EstilosUI.crearBotonSecundario(
+                "Volver"
+        );
 
         panel.add(btnCrear);
         panel.add(btnModificar);
@@ -460,10 +632,9 @@ public class PanelListaTurnosAdmin extends JPanel {
                         "Nuevo estado:"
                 );
 
-        comboEstado =
-                new JComboBox<>(
-                        EstadoTurno.values()
-                );
+        comboEstado = new JComboBox<>(
+                EstadoTurno.values()
+        );
 
         prepararComboEstado();
 
@@ -493,10 +664,7 @@ public class PanelListaTurnosAdmin extends JPanel {
         );
 
         comboEstado.setPreferredSize(
-                new Dimension(
-                        135,
-                        36
-                )
+                new Dimension(135, 36)
         );
 
         comboEstado.setToolTipText(
@@ -504,55 +672,7 @@ public class PanelListaTurnosAdmin extends JPanel {
         );
 
         comboEstado.setRenderer(
-                new DefaultListCellRenderer() {
-
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Component getListCellRendererComponent(
-                            JList<?> lista,
-                            Object valor,
-                            int indice,
-                            boolean seleccionado,
-                            boolean tieneFoco) {
-
-                        super.getListCellRendererComponent(
-                                lista,
-                                valor,
-                                indice,
-                                seleccionado,
-                                tieneFoco
-                        );
-
-                        if (seleccionado) {
-                            setBackground(
-                                    EstilosUI.COLOR_PRIMARIO
-                            );
-
-                            setForeground(Color.WHITE);
-
-                        } else {
-                            setBackground(
-                                    EstilosUI.FONDO_SECUNDARIO
-                            );
-
-                            setForeground(
-                                    EstilosUI.TEXTO_PRINCIPAL
-                            );
-                        }
-
-                        setBorder(
-                                new EmptyBorder(
-                                        5,
-                                        8,
-                                        5,
-                                        8
-                                )
-                        );
-
-                        return this;
-                    }
-                }
+                crearRendererCombo()
         );
     }
 
@@ -582,7 +702,6 @@ public class PanelListaTurnosAdmin extends JPanel {
         tabla.getSelectionModel()
                 .addListSelectionListener(
                         evento -> {
-
                             if (!evento.getValueIsAdjusting()) {
                                 sincronizarComboConFila();
                             }
@@ -591,7 +710,6 @@ public class PanelListaTurnosAdmin extends JPanel {
 
         tabla.addMouseListener(
                 new java.awt.event.MouseAdapter() {
-
                     @Override
                     public void mouseClicked(
                             java.awt.event.MouseEvent evento) {
@@ -601,6 +719,190 @@ public class PanelListaTurnosAdmin extends JPanel {
                         }
                     }
                 }
+        );
+
+        tabla.getInputMap(
+                JComponent.WHEN_FOCUSED
+        ).put(
+                KeyStroke.getKeyStroke("ENTER"),
+                "modificarTurno"
+        );
+
+        tabla.getActionMap().put(
+                "modificarTurno",
+                new AbstractAction() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public void actionPerformed(
+                            java.awt.event.ActionEvent evento) {
+
+                        modificarTurno(usuario);
+                    }
+                }
+        );
+
+        configurarFiltros();
+    }
+
+    private void configurarFiltros() {
+        txtBuscar.getDocument()
+                .addDocumentListener(
+                        new DocumentListener() {
+                            @Override
+                            public void insertUpdate(
+                                    DocumentEvent evento) {
+
+                                aplicarFiltros();
+                            }
+
+                            @Override
+                            public void removeUpdate(
+                                    DocumentEvent evento) {
+
+                                aplicarFiltros();
+                            }
+
+                            @Override
+                            public void changedUpdate(
+                                    DocumentEvent evento) {
+
+                                aplicarFiltros();
+                            }
+                        }
+                );
+
+        comboFiltroEstado.addActionListener(
+                evento -> aplicarFiltros()
+        );
+
+        btnLimpiarFiltros.addActionListener(
+                evento -> limpiarFiltros()
+        );
+    }
+
+    private void aplicarFiltros() {
+        String textoBusqueda = txtBuscar
+                .getText()
+                .trim();
+
+        String estadoSeleccionado =
+                (String) comboFiltroEstado
+                        .getSelectedItem();
+
+        List<RowFilter<DefaultTableModel, Object>> filtros =
+                new ArrayList<>();
+
+        if (!textoBusqueda.isEmpty()) {
+            String expresion =
+                    "(?i)" + Pattern.quote(textoBusqueda);
+
+            filtros.add(
+                    RowFilter.regexFilter(
+                            expresion,
+                            1,
+                            2
+                    )
+            );
+        }
+
+        if (estadoSeleccionado != null
+                && !"Todos".equals(estadoSeleccionado)) {
+
+            EstadoTurno estadoFiltro =
+                    convertirEstadoFiltro(
+                            estadoSeleccionado
+                    );
+
+            if (estadoFiltro != null) {
+                filtros.add(
+                        new RowFilter
+                                <DefaultTableModel, Object>() {
+
+                            @Override
+                            public boolean include(
+                                    Entry
+                                            <? extends DefaultTableModel,
+                                            ? extends Object> entrada) {
+
+                                Object valorEstado =
+                                        entrada.getValue(3);
+
+                                return valorEstado
+                                        == estadoFiltro;
+                            }
+                        }
+                );
+            }
+        }
+
+        if (filtros.isEmpty()) {
+            ordenador.setRowFilter(null);
+        } else {
+            ordenador.setRowFilter(
+                    RowFilter.andFilter(filtros)
+            );
+        }
+
+        tabla.clearSelection();
+        actualizarContadorResultados();
+    }
+
+    private EstadoTurno convertirEstadoFiltro(
+            String valor) {
+
+        if (valor == null) {
+            return null;
+        }
+
+        switch (valor) {
+            case "Pendiente":
+                return EstadoTurno.PENDIENTE;
+            case "Confirmado":
+                return EstadoTurno.CONFIRMADO;
+            case "Atendido":
+                return EstadoTurno.ATENDIDO;
+            case "Cancelado":
+                return EstadoTurno.CANCELADO;
+            case "Ausente":
+                return EstadoTurno.AUSENTE;
+            default:
+                return null;
+        }
+    }
+
+    private void limpiarFiltros() {
+        txtBuscar.setText("");
+        comboFiltroEstado.setSelectedItem("Todos");
+        ordenador.setRowFilter(null);
+        tabla.clearSelection();
+        actualizarContadorResultados();
+        txtBuscar.requestFocusInWindow();
+    }
+
+    private void actualizarContadorResultados() {
+        if (lblContadorResultados == null
+                || tabla == null
+                || contenidoTabla == null) {
+
+            return;
+        }
+
+        int cantidadVisible = tabla.getRowCount();
+        int cantidadTotal = contenidoTabla.getRowCount();
+
+        String palabra =
+                cantidadVisible == 1
+                        ? "turno"
+                        : "turnos";
+
+        lblContadorResultados.setText(
+                "Mostrando "
+                        + cantidadVisible
+                        + " de "
+                        + cantidadTotal
+                        + " "
+                        + palabra
         );
     }
 
@@ -615,41 +917,33 @@ public class PanelListaTurnosAdmin extends JPanel {
                 JOptionPane.INFORMATION_MESSAGE
         );
 
-        panelManager
-                .mostrarPanelSeleccionOdontologo(
-                        usuario
-                );
+        panelManager.mostrarPanelSeleccionOdontologo(
+                usuario
+        );
     }
 
     private void modificarTurno(
             String usuario) {
 
-        Long turnoId =
-                obtenerIdSeleccionado();
+        Long turnoId = obtenerIdSeleccionado();
 
         if (turnoId == null) {
             return;
         }
 
         try {
-            Turno turno =
-                    turnoService.buscar(
-                            turnoId
-                    );
+            Turno turno = turnoService.buscar(turnoId);
 
             if (turno == null) {
                 mostrarError(
-                        "El turno seleccionado "
-                                + "ya no existe."
+                        "El turno seleccionado ya no existe."
                 );
 
                 refrescarLista(usuario);
                 return;
             }
 
-            if (esEstadoFinal(
-                    turno.getEstado())) {
-
+            if (esEstadoFinal(turno.getEstado())) {
                 mostrarError(
                         "No se puede modificar la fecha "
                                 + "o el horario de un turno "
@@ -659,16 +953,13 @@ public class PanelListaTurnosAdmin extends JPanel {
                 return;
             }
 
-            panelManager
-                    .mostrarPanelFormularioTurno(
-                            turno,
-                            usuario
-                    );
+            panelManager.mostrarPanelFormularioTurno(
+                    turno,
+                    usuario
+            );
 
         } catch (IllegalArgumentException exception) {
-            mostrarError(
-                    exception.getMessage()
-            );
+            mostrarError(exception.getMessage());
 
         } catch (RuntimeException exception) {
             exception.printStackTrace();
@@ -682,32 +973,25 @@ public class PanelListaTurnosAdmin extends JPanel {
     private void cancelarTurno(
             String usuario) {
 
-        Long turnoId =
-                obtenerIdSeleccionado();
+        Long turnoId = obtenerIdSeleccionado();
 
         if (turnoId == null) {
             return;
         }
 
         try {
-            Turno turno =
-                    turnoService.buscar(
-                            turnoId
-                    );
+            Turno turno = turnoService.buscar(turnoId);
 
             if (turno == null) {
                 mostrarError(
-                        "El turno seleccionado "
-                                + "ya no existe."
+                        "El turno seleccionado ya no existe."
                 );
 
                 refrescarLista(usuario);
                 return;
             }
 
-            if (!puedeCancelar(
-                    turno.getEstado())) {
-
+            if (!puedeCancelar(turno.getEstado())) {
                 mostrarError(
                         obtenerMensajeNoCancelable(
                                 turno.getEstado()
@@ -727,9 +1011,7 @@ public class PanelListaTurnosAdmin extends JPanel {
                             JOptionPane.WARNING_MESSAGE
                     );
 
-            if (respuesta
-                    != JOptionPane.YES_OPTION) {
-
+            if (respuesta != JOptionPane.YES_OPTION) {
                 return;
             }
 
@@ -748,9 +1030,7 @@ public class PanelListaTurnosAdmin extends JPanel {
             refrescarLista(usuario);
 
         } catch (IllegalArgumentException exception) {
-            mostrarError(
-                    exception.getMessage()
-            );
+            mostrarError(exception.getMessage());
 
         } catch (RuntimeException exception) {
             exception.printStackTrace();
@@ -764,16 +1044,15 @@ public class PanelListaTurnosAdmin extends JPanel {
     private void cambiarEstado(
             String usuario) {
 
-        Long turnoId =
-                obtenerIdSeleccionado();
+        Long turnoId = obtenerIdSeleccionado();
 
         if (turnoId == null) {
             return;
         }
 
         EstadoTurno nuevoEstado =
-                (EstadoTurno)
-                        comboEstado.getSelectedItem();
+                (EstadoTurno) comboEstado
+                        .getSelectedItem();
 
         if (nuevoEstado == null) {
             mostrarError(
@@ -795,9 +1074,7 @@ public class PanelListaTurnosAdmin extends JPanel {
                         JOptionPane.QUESTION_MESSAGE
                 );
 
-        if (respuesta
-                != JOptionPane.YES_OPTION) {
-
+        if (respuesta != JOptionPane.YES_OPTION) {
             return;
         }
 
@@ -818,9 +1095,7 @@ public class PanelListaTurnosAdmin extends JPanel {
             refrescarLista(usuario);
 
         } catch (IllegalArgumentException exception) {
-            mostrarError(
-                    exception.getMessage()
-            );
+            mostrarError(exception.getMessage());
 
         } catch (RuntimeException exception) {
             exception.printStackTrace();
@@ -833,8 +1108,7 @@ public class PanelListaTurnosAdmin extends JPanel {
     }
 
     private Long obtenerIdSeleccionado() {
-        int filaVista =
-                tabla.getSelectedRow();
+        int filaVista = tabla.getSelectedRow();
 
         if (filaVista < 0) {
             mostrarError(
@@ -867,8 +1141,7 @@ public class PanelListaTurnosAdmin extends JPanel {
     }
 
     private void sincronizarComboConFila() {
-        int filaVista =
-                tabla.getSelectedRow();
+        int filaVista = tabla.getSelectedRow();
 
         if (filaVista < 0) {
             return;
@@ -885,13 +1158,10 @@ public class PanelListaTurnosAdmin extends JPanel {
                         3
                 );
 
-        if (valorEstado
-                instanceof EstadoTurno) {
-
+        if (valorEstado instanceof EstadoTurno) {
             comboEstado.setSelectedItem(
                     valorEstado
             );
-
             return;
         }
 
@@ -905,9 +1175,7 @@ public class PanelListaTurnosAdmin extends JPanel {
                                         .toUpperCase()
                         );
 
-                comboEstado.setSelectedItem(
-                        estado
-                );
+                comboEstado.setSelectedItem(estado);
 
             } catch (IllegalArgumentException exception) {
                 comboEstado.setSelectedItem(
@@ -933,8 +1201,7 @@ public class PanelListaTurnosAdmin extends JPanel {
         }
 
         if (estado == EstadoTurno.ATENDIDO) {
-            return "No se puede cancelar "
-                    + "un turno atendido.";
+            return "No se puede cancelar un turno atendido.";
         }
 
         if (estado == EstadoTurno.AUSENTE) {
@@ -957,19 +1224,17 @@ public class PanelListaTurnosAdmin extends JPanel {
     private void refrescarLista(
             String usuario) {
 
-        panelManager
-                .mostrarPanelListaTurnosAdmin(
-                        usuario
-                );
+        panelManager.mostrarPanelListaTurnosAdmin(
+                usuario
+        );
     }
 
     private void regresar(
             String usuario) {
 
-        panelManager
-                .mostrarPanelPrincipalAdmin(
-                        usuario
-                );
+        panelManager.mostrarPanelPrincipalAdmin(
+                usuario
+        );
     }
 
     private void mostrarError(
