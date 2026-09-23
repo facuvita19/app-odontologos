@@ -2,21 +2,30 @@ package vista;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.List;
+import java.util.regex.Pattern;
 
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.RowFilter;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
@@ -31,6 +40,11 @@ public class PanelListaPacientes extends JPanel {
     private JTable tabla;
     private DefaultTableModel contenidoTabla;
     private JScrollPane scrollPane;
+    private TableRowSorter<DefaultTableModel> ordenador;
+
+    private JTextField txtBuscar;
+    private JButton btnLimpiarBusqueda;
+    private JLabel lblContadorResultados;
 
     private JButton btnCrear;
     private JButton btnModificar;
@@ -55,13 +69,16 @@ public class PanelListaPacientes extends JPanel {
         setLayout(new BorderLayout());
         setBackground(EstilosUI.FONDO_PRINCIPAL);
 
+        crearTabla();
+        cargarPacientes();
+
         add(
                 crearEncabezado(),
                 BorderLayout.NORTH
         );
 
         add(
-                crearContenidoTabla(),
+                crearPanelCentral(),
                 BorderLayout.CENTER
         );
 
@@ -70,12 +87,16 @@ public class PanelListaPacientes extends JPanel {
                 BorderLayout.SOUTH
         );
 
-        cargarPacientes();
         configurarEventos(usuario);
+        actualizarContadorResultados();
 
         revalidate();
         repaint();
         setVisible(true);
+
+        SwingUtilities.invokeLater(
+                () -> txtBuscar.requestFocusInWindow()
+        );
     }
 
     private JPanel crearEncabezado() {
@@ -96,7 +117,7 @@ public class PanelListaPacientes extends JPanel {
                 new EmptyBorder(
                         22,
                         30,
-                        15,
+                        12,
                         30
                 )
         );
@@ -135,7 +156,8 @@ public class PanelListaPacientes extends JPanel {
         );
 
         JLabel ayuda = new JLabel(
-                "Presione los encabezados para ordenar la tabla"
+                "Utilice la búsqueda o presione los "
+                        + "encabezados para ordenar la tabla"
         );
 
         ayuda.setFont(
@@ -155,16 +177,115 @@ public class PanelListaPacientes extends JPanel {
         );
 
         encabezado.add(titulo);
-        encabezado.add(
-                Box.createVerticalStrut(6)
-        );
+        encabezado.add(Box.createVerticalStrut(6));
         encabezado.add(subtitulo);
-        encabezado.add(
-                Box.createVerticalStrut(5)
-        );
+        encabezado.add(Box.createVerticalStrut(5));
         encabezado.add(ayuda);
 
         return encabezado;
+    }
+
+    private JPanel crearPanelCentral() {
+        JPanel panelCentral = new JPanel(
+                new BorderLayout()
+        );
+
+        panelCentral.setBackground(
+                EstilosUI.FONDO_PRINCIPAL
+        );
+
+        panelCentral.add(
+                crearPanelBusqueda(),
+                BorderLayout.NORTH
+        );
+
+        panelCentral.add(
+                crearContenidoTabla(),
+                BorderLayout.CENTER
+        );
+
+        return panelCentral;
+    }
+
+    private JPanel crearPanelBusqueda() {
+        JPanel contenedor = new JPanel(
+                new BorderLayout(
+                        15,
+                        8
+                )
+        );
+
+        contenedor.setBackground(
+                EstilosUI.FONDO_PRINCIPAL
+        );
+
+        contenedor.setBorder(
+                new EmptyBorder(
+                        0,
+                        30,
+                        10,
+                        30
+                )
+        );
+
+        JPanel controles = new JPanel(
+                new FlowLayout(
+                        FlowLayout.LEFT,
+                        10,
+                        0
+                )
+        );
+
+        controles.setOpaque(false);
+
+        JLabel lblBuscar =
+                EstilosUI.crearEtiqueta(
+                        "Buscar:"
+                );
+
+        txtBuscar = new JTextField(24);
+        EstilosUI.prepararCampo(txtBuscar);
+
+        txtBuscar.setToolTipText(
+                "Buscar por nombre, apellido, DNI o domicilio"
+        );
+
+        btnLimpiarBusqueda =
+                EstilosUI.crearBotonSecundario(
+                        "Limpiar búsqueda"
+                );
+
+        controles.add(lblBuscar);
+        controles.add(txtBuscar);
+        controles.add(btnLimpiarBusqueda);
+
+        lblContadorResultados = new JLabel(
+                "Mostrando 0 de 0 pacientes"
+        );
+
+        lblContadorResultados.setFont(
+                EstilosUI.FUENTE_NORMAL
+        );
+
+        lblContadorResultados.setForeground(
+                EstilosUI.TEXTO_SECUNDARIO
+        );
+
+        lblContadorResultados.setHorizontalAlignment(
+                SwingConstants.RIGHT
+        );
+
+        contenedor.add(
+                controles,
+                BorderLayout.WEST
+        );
+
+        contenedor.add(
+                lblContadorResultados,
+                BorderLayout.EAST
+        );
+
+        return contenedor;
     }
 
     private JPanel crearContenidoTabla() {
@@ -184,8 +305,6 @@ public class PanelListaPacientes extends JPanel {
                         30
                 )
         );
-
-        crearTabla();
 
         contenedor.add(
                 scrollPane,
@@ -242,10 +361,9 @@ public class PanelListaPacientes extends JPanel {
 
         tabla.setFillsViewportHeight(true);
 
-        TableRowSorter<DefaultTableModel> ordenador =
-                new TableRowSorter<>(
-                        contenidoTabla
-                );
+        ordenador = new TableRowSorter<>(
+                contenidoTabla
+        );
 
         tabla.setRowSorter(ordenador);
 
@@ -257,7 +375,19 @@ public class PanelListaPacientes extends JPanel {
                 )
         );
 
+        scrollPane.setBackground(
+                EstilosUI.FONDO_SECUNDARIO
+        );
+
         scrollPane.getViewport().setBackground(
+                EstilosUI.FONDO_SECUNDARIO
+        );
+
+        scrollPane.getVerticalScrollBar().setBackground(
+                EstilosUI.FONDO_SECUNDARIO
+        );
+
+        scrollPane.getHorizontalScrollBar().setBackground(
                 EstilosUI.FONDO_SECUNDARIO
         );
 
@@ -391,16 +521,14 @@ public class PanelListaPacientes extends JPanel {
         );
 
         btnVolver.addActionListener(
-                evento ->
-                        panelManager
-                                .mostrarPanelPrincipalAdmin(
-                                        usuario
-                                )
+                evento -> panelManager
+                        .mostrarPanelPrincipalAdmin(
+                                usuario
+                        )
         );
 
         tabla.addMouseListener(
                 new java.awt.event.MouseAdapter() {
-
                     @Override
                     public void mouseClicked(
                             java.awt.event.MouseEvent evento) {
@@ -410,6 +538,127 @@ public class PanelListaPacientes extends JPanel {
                         }
                     }
                 }
+        );
+
+        tabla.getInputMap(
+                JComponent.WHEN_FOCUSED
+        ).put(
+                KeyStroke.getKeyStroke("ENTER"),
+                "modificarPaciente"
+        );
+
+        tabla.getActionMap().put(
+                "modificarPaciente",
+                new AbstractAction() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public void actionPerformed(
+                            java.awt.event.ActionEvent evento) {
+
+                        modificarPaciente(usuario);
+                    }
+                }
+        );
+
+        configurarBusqueda();
+    }
+
+    private void configurarBusqueda() {
+        txtBuscar.getDocument()
+                .addDocumentListener(
+                        new DocumentListener() {
+                            @Override
+                            public void insertUpdate(
+                                    DocumentEvent evento) {
+
+                                aplicarBusqueda();
+                            }
+
+                            @Override
+                            public void removeUpdate(
+                                    DocumentEvent evento) {
+
+                                aplicarBusqueda();
+                            }
+
+                            @Override
+                            public void changedUpdate(
+                                    DocumentEvent evento) {
+
+                                aplicarBusqueda();
+                            }
+                        }
+                );
+
+        btnLimpiarBusqueda.addActionListener(
+                evento -> limpiarBusqueda()
+        );
+    }
+
+    private void aplicarBusqueda() {
+        String texto = txtBuscar
+                .getText()
+                .trim();
+
+        if (texto.isEmpty()) {
+            ordenador.setRowFilter(null);
+        } else {
+            String expresion =
+                    "(?i)" + Pattern.quote(texto);
+
+            /*
+             * Columnas consultadas:
+             * 1 = Nombre
+             * 2 = Apellido
+             * 3 = DNI
+             * 4 = Domicilio
+             */
+            ordenador.setRowFilter(
+                    RowFilter.regexFilter(
+                            expresion,
+                            1,
+                            2,
+                            3,
+                            4
+                    )
+            );
+        }
+
+        tabla.clearSelection();
+        actualizarContadorResultados();
+    }
+
+    private void limpiarBusqueda() {
+        txtBuscar.setText("");
+        ordenador.setRowFilter(null);
+        tabla.clearSelection();
+        actualizarContadorResultados();
+        txtBuscar.requestFocusInWindow();
+    }
+
+    private void actualizarContadorResultados() {
+        if (lblContadorResultados == null
+                || tabla == null
+                || contenidoTabla == null) {
+
+            return;
+        }
+
+        int cantidadVisible = tabla.getRowCount();
+        int cantidadTotal = contenidoTabla.getRowCount();
+
+        String palabra = cantidadVisible == 1
+                ? "paciente"
+                : "pacientes";
+
+        lblContadorResultados.setText(
+                "Mostrando "
+                        + cantidadVisible
+                        + " de "
+                        + cantidadTotal
+                        + " "
+                        + palabra
         );
     }
 
@@ -424,18 +673,16 @@ public class PanelListaPacientes extends JPanel {
     private void modificarPaciente(
             String usuario) {
 
-        Long pacienteId =
-                obtenerIdSeleccionado();
+        Long pacienteId = obtenerIdSeleccionado();
 
         if (pacienteId == null) {
             return;
         }
 
         try {
-            Paciente paciente =
-                    pacienteService.buscar(
-                            pacienteId
-                    );
+            Paciente paciente = pacienteService.buscar(
+                    pacienteId
+            );
 
             if (paciente == null) {
                 mostrarError(
@@ -453,9 +700,7 @@ public class PanelListaPacientes extends JPanel {
             );
 
         } catch (IllegalArgumentException exception) {
-            mostrarError(
-                    exception.getMessage()
-            );
+            mostrarError(exception.getMessage());
 
         } catch (RuntimeException exception) {
             exception.printStackTrace();
@@ -470,18 +715,16 @@ public class PanelListaPacientes extends JPanel {
     private void desactivarPaciente(
             String usuario) {
 
-        Long pacienteId =
-                obtenerIdSeleccionado();
+        Long pacienteId = obtenerIdSeleccionado();
 
         if (pacienteId == null) {
             return;
         }
 
         try {
-            Paciente paciente =
-                    pacienteService.buscar(
-                            pacienteId
-                    );
+            Paciente paciente = pacienteService.buscar(
+                    pacienteId
+            );
 
             if (paciente == null) {
                 mostrarError(
@@ -493,35 +736,29 @@ public class PanelListaPacientes extends JPanel {
                 return;
             }
 
-            int respuesta =
-                    JOptionPane.showConfirmDialog(
-                            this,
-                            "¿Desea desactivar al paciente "
-                                    + paciente.getNombre()
-                                    + " "
-                                    + paciente.getApellido()
-                                    + "?\n\n"
-                                    + "Se conservará el historial "
-                                    + "de turnos.",
-                            "Confirmar desactivación",
-                            JOptionPane.YES_NO_OPTION,
-                            JOptionPane.WARNING_MESSAGE
-                    );
+            int respuesta = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Desea desactivar al paciente "
+                            + paciente.getNombre()
+                            + " "
+                            + paciente.getApellido()
+                            + "?\n\n"
+                            + "Se conservará el historial "
+                            + "de turnos.",
+                    "Confirmar desactivación",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
 
-            if (respuesta
-                    != JOptionPane.YES_OPTION) {
-
+            if (respuesta != JOptionPane.YES_OPTION) {
                 return;
             }
 
-            pacienteService.eliminar(
-                    pacienteId
-            );
+            pacienteService.eliminar(pacienteId);
 
             JOptionPane.showMessageDialog(
                     this,
-                    "El paciente se desactivó "
-                            + "correctamente.",
+                    "El paciente se desactivó correctamente.",
                     "Paciente desactivado",
                     JOptionPane.INFORMATION_MESSAGE
             );
@@ -529,49 +766,41 @@ public class PanelListaPacientes extends JPanel {
             refrescarLista(usuario);
 
         } catch (IllegalArgumentException exception) {
-            mostrarError(
-                    exception.getMessage()
-            );
+            mostrarError(exception.getMessage());
 
         } catch (RuntimeException exception) {
             exception.printStackTrace();
 
             mostrarError(
-                    "No se pudo desactivar "
-                            + "al paciente."
+                    "No se pudo desactivar al paciente."
             );
         }
     }
 
     private Long obtenerIdSeleccionado() {
-        int filaVista =
-                tabla.getSelectedRow();
+        int filaVista = tabla.getSelectedRow();
 
         if (filaVista < 0) {
             mostrarError(
                     "Debe seleccionar un paciente."
             );
-
             return null;
         }
 
-        int filaModelo =
-                tabla.convertRowIndexToModel(
-                        filaVista
-                );
+        int filaModelo = tabla.convertRowIndexToModel(
+                filaVista
+        );
 
-        Object valorId =
-                contenidoTabla.getValueAt(
-                        filaModelo,
-                        0
-                );
+        Object valorId = contenidoTabla.getValueAt(
+                filaModelo,
+                0
+        );
 
         if (!(valorId instanceof Number)) {
             mostrarError(
                     "No se pudo identificar "
                             + "al paciente seleccionado."
             );
-
             return null;
         }
 
@@ -596,6 +825,7 @@ public class PanelListaPacientes extends JPanel {
                 JOptionPane.ERROR_MESSAGE
         );
     }
+
     private void centrarContenidoTabla() {
         DefaultTableCellRenderer encabezadoCentrado =
                 (DefaultTableCellRenderer)

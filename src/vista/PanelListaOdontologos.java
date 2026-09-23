@@ -2,21 +2,30 @@ package vista;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.List;
+import java.util.regex.Pattern;
 
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.RowFilter;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
@@ -31,6 +40,11 @@ public class PanelListaOdontologos extends JPanel {
     private JTable tabla;
     private DefaultTableModel contenidoTabla;
     private JScrollPane scrollPane;
+    private TableRowSorter<DefaultTableModel> ordenador;
+
+    private JTextField txtBuscar;
+    private JButton btnLimpiarBusqueda;
+    private JLabel lblContadorResultados;
 
     private JButton btnCrear;
     private JButton btnModificar;
@@ -58,13 +72,16 @@ public class PanelListaOdontologos extends JPanel {
                 EstilosUI.FONDO_PRINCIPAL
         );
 
+        crearTabla();
+        cargarOdontologos();
+
         add(
                 crearEncabezado(),
                 BorderLayout.NORTH
         );
 
         add(
-                crearContenidoTabla(),
+                crearPanelCentral(),
                 BorderLayout.CENTER
         );
 
@@ -73,12 +90,16 @@ public class PanelListaOdontologos extends JPanel {
                 BorderLayout.SOUTH
         );
 
-        cargarOdontologos();
         configurarEventos(usuario);
+        actualizarContadorResultados();
 
         revalidate();
         repaint();
         setVisible(true);
+
+        SwingUtilities.invokeLater(
+                () -> txtBuscar.requestFocusInWindow()
+        );
     }
 
     private JPanel crearEncabezado() {
@@ -99,7 +120,7 @@ public class PanelListaOdontologos extends JPanel {
                 new EmptyBorder(
                         22,
                         30,
-                        15,
+                        12,
                         30
                 )
         );
@@ -138,7 +159,8 @@ public class PanelListaOdontologos extends JPanel {
         );
 
         JLabel ayuda = new JLabel(
-                "Presione los encabezados para ordenar la tabla"
+                "Utilice la búsqueda o presione los "
+                        + "encabezados para ordenar la tabla"
         );
 
         ayuda.setFont(
@@ -158,20 +180,115 @@ public class PanelListaOdontologos extends JPanel {
         );
 
         encabezado.add(titulo);
-
-        encabezado.add(
-                Box.createVerticalStrut(6)
-        );
-
+        encabezado.add(Box.createVerticalStrut(6));
         encabezado.add(subtitulo);
-
-        encabezado.add(
-                Box.createVerticalStrut(5)
-        );
-
+        encabezado.add(Box.createVerticalStrut(5));
         encabezado.add(ayuda);
 
         return encabezado;
+    }
+
+    private JPanel crearPanelCentral() {
+        JPanel panelCentral = new JPanel(
+                new BorderLayout()
+        );
+
+        panelCentral.setBackground(
+                EstilosUI.FONDO_PRINCIPAL
+        );
+
+        panelCentral.add(
+                crearPanelBusqueda(),
+                BorderLayout.NORTH
+        );
+
+        panelCentral.add(
+                crearContenidoTabla(),
+                BorderLayout.CENTER
+        );
+
+        return panelCentral;
+    }
+
+    private JPanel crearPanelBusqueda() {
+        JPanel contenedor = new JPanel(
+                new BorderLayout(
+                        15,
+                        8
+                )
+        );
+
+        contenedor.setBackground(
+                EstilosUI.FONDO_PRINCIPAL
+        );
+
+        contenedor.setBorder(
+                new EmptyBorder(
+                        0,
+                        30,
+                        10,
+                        30
+                )
+        );
+
+        JPanel controles = new JPanel(
+                new FlowLayout(
+                        FlowLayout.LEFT,
+                        10,
+                        0
+                )
+        );
+
+        controles.setOpaque(false);
+
+        JLabel lblBuscar =
+                EstilosUI.crearEtiqueta(
+                        "Buscar:"
+                );
+
+        txtBuscar = new JTextField(24);
+        EstilosUI.prepararCampo(txtBuscar);
+
+        txtBuscar.setToolTipText(
+                "Buscar por nombre, apellido o matrícula"
+        );
+
+        btnLimpiarBusqueda =
+                EstilosUI.crearBotonSecundario(
+                        "Limpiar búsqueda"
+                );
+
+        controles.add(lblBuscar);
+        controles.add(txtBuscar);
+        controles.add(btnLimpiarBusqueda);
+
+        lblContadorResultados = new JLabel(
+                "Mostrando 0 de 0 odontólogos"
+        );
+
+        lblContadorResultados.setFont(
+                EstilosUI.FUENTE_NORMAL
+        );
+
+        lblContadorResultados.setForeground(
+                EstilosUI.TEXTO_SECUNDARIO
+        );
+
+        lblContadorResultados.setHorizontalAlignment(
+                SwingConstants.RIGHT
+        );
+
+        contenedor.add(
+                controles,
+                BorderLayout.WEST
+        );
+
+        contenedor.add(
+                lblContadorResultados,
+                BorderLayout.EAST
+        );
+
+        return contenedor;
     }
 
     private JPanel crearContenidoTabla() {
@@ -191,8 +308,6 @@ public class PanelListaOdontologos extends JPanel {
                         30
                 )
         );
-
-        crearTabla();
 
         contenedor.add(
                 scrollPane,
@@ -281,10 +396,9 @@ public class PanelListaOdontologos extends JPanel {
     }
 
     private void configurarOrdenamiento() {
-        TableRowSorter<DefaultTableModel> ordenador =
-                new TableRowSorter<>(
-                        contenidoTabla
-                );
+        ordenador = new TableRowSorter<>(
+                contenidoTabla
+        );
 
         tabla.setRowSorter(ordenador);
     }
@@ -424,48 +538,154 @@ public class PanelListaOdontologos extends JPanel {
             String usuario) {
 
         btnCrear.addActionListener(
-                evento ->
-                        crearOdontologo(
-                                usuario
-                        )
+                evento -> crearOdontologo(usuario)
         );
 
         btnModificar.addActionListener(
-                evento ->
-                        modificarOdontologo(
-                                usuario
-                        )
+                evento -> modificarOdontologo(usuario)
         );
 
         btnDesactivar.addActionListener(
-                evento ->
-                        desactivarOdontologo(
-                                usuario
-                        )
+                evento -> desactivarOdontologo(usuario)
         );
 
         btnVolver.addActionListener(
-                evento ->
-                        panelManager
-                                .mostrarPanelPrincipalAdmin(
-                                        usuario
-                                )
+                evento -> panelManager
+                        .mostrarPanelPrincipalAdmin(
+                                usuario
+                        )
         );
 
         tabla.addMouseListener(
                 new java.awt.event.MouseAdapter() {
-
                     @Override
                     public void mouseClicked(
                             java.awt.event.MouseEvent evento) {
 
                         if (evento.getClickCount() == 2) {
-                            modificarOdontologo(
-                                    usuario
-                            );
+                            modificarOdontologo(usuario);
                         }
                     }
                 }
+        );
+
+        tabla.getInputMap(
+                JComponent.WHEN_FOCUSED
+        ).put(
+                KeyStroke.getKeyStroke("ENTER"),
+                "modificarOdontologo"
+        );
+
+        tabla.getActionMap().put(
+                "modificarOdontologo",
+                new AbstractAction() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public void actionPerformed(
+                            java.awt.event.ActionEvent evento) {
+
+                        modificarOdontologo(usuario);
+                    }
+                }
+        );
+
+        configurarBusqueda();
+    }
+
+    private void configurarBusqueda() {
+        txtBuscar.getDocument()
+                .addDocumentListener(
+                        new DocumentListener() {
+                            @Override
+                            public void insertUpdate(
+                                    DocumentEvent evento) {
+
+                                aplicarBusqueda();
+                            }
+
+                            @Override
+                            public void removeUpdate(
+                                    DocumentEvent evento) {
+
+                                aplicarBusqueda();
+                            }
+
+                            @Override
+                            public void changedUpdate(
+                                    DocumentEvent evento) {
+
+                                aplicarBusqueda();
+                            }
+                        }
+                );
+
+        btnLimpiarBusqueda.addActionListener(
+                evento -> limpiarBusqueda()
+        );
+    }
+
+    private void aplicarBusqueda() {
+        String texto = txtBuscar
+                .getText()
+                .trim();
+
+        if (texto.isEmpty()) {
+            ordenador.setRowFilter(null);
+        } else {
+            String expresion =
+                    "(?i)" + Pattern.quote(texto);
+
+            /*
+             * Columnas consultadas:
+             * 1 = Nombre
+             * 2 = Apellido
+             * 3 = Matrícula
+             */
+            ordenador.setRowFilter(
+                    RowFilter.regexFilter(
+                            expresion,
+                            1,
+                            2,
+                            3
+                    )
+            );
+        }
+
+        tabla.clearSelection();
+        actualizarContadorResultados();
+    }
+
+    private void limpiarBusqueda() {
+        txtBuscar.setText("");
+        ordenador.setRowFilter(null);
+        tabla.clearSelection();
+        actualizarContadorResultados();
+        txtBuscar.requestFocusInWindow();
+    }
+
+    private void actualizarContadorResultados() {
+        if (lblContadorResultados == null
+                || tabla == null
+                || contenidoTabla == null) {
+
+            return;
+        }
+
+        int cantidadVisible = tabla.getRowCount();
+        int cantidadTotal = contenidoTabla.getRowCount();
+
+        String palabra = cantidadVisible == 1
+                ? "odontólogo"
+                : "odontólogos";
+
+        lblContadorResultados.setText(
+                "Mostrando "
+                        + cantidadVisible
+                        + " de "
+                        + cantidadTotal
+                        + " "
+                        + palabra
         );
     }
 
@@ -481,8 +701,7 @@ public class PanelListaOdontologos extends JPanel {
     private void modificarOdontologo(
             String usuario) {
 
-        Long odontologoId =
-                obtenerIdSeleccionado();
+        Long odontologoId = obtenerIdSeleccionado();
 
         if (odontologoId == null) {
             return;
@@ -511,9 +730,7 @@ public class PanelListaOdontologos extends JPanel {
                     );
 
         } catch (IllegalArgumentException exception) {
-            mostrarError(
-                    exception.getMessage()
-            );
+            mostrarError(exception.getMessage());
 
         } catch (RuntimeException exception) {
             exception.printStackTrace();
@@ -528,8 +745,7 @@ public class PanelListaOdontologos extends JPanel {
     private void desactivarOdontologo(
             String usuario) {
 
-        Long odontologoId =
-                obtenerIdSeleccionado();
+        Long odontologoId = obtenerIdSeleccionado();
 
         if (odontologoId == null) {
             return;
@@ -551,25 +767,22 @@ public class PanelListaOdontologos extends JPanel {
                 return;
             }
 
-            int respuesta =
-                    JOptionPane.showConfirmDialog(
-                            this,
-                            "¿Desea desactivar al odontólogo "
-                                    + odontologo.getNombre()
-                                    + " "
-                                    + odontologo.getApellido()
-                                    + "?\n\n"
-                                    + "El profesional dejará de aparecer "
-                                    + "en las selecciones, pero se conservará "
-                                    + "el historial de turnos.",
-                            "Confirmar desactivación",
-                            JOptionPane.YES_NO_OPTION,
-                            JOptionPane.WARNING_MESSAGE
-                    );
+            int respuesta = JOptionPane.showConfirmDialog(
+                    this,
+                    "¿Desea desactivar al odontólogo "
+                            + odontologo.getNombre()
+                            + " "
+                            + odontologo.getApellido()
+                            + "?\n\n"
+                            + "El profesional dejará de aparecer "
+                            + "en las selecciones, pero se conservará "
+                            + "el historial de turnos.",
+                    "Confirmar desactivación",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
 
-            if (respuesta
-                    != JOptionPane.YES_OPTION) {
-
+            if (respuesta != JOptionPane.YES_OPTION) {
                 return;
             }
 
@@ -579,8 +792,7 @@ public class PanelListaOdontologos extends JPanel {
 
             JOptionPane.showMessageDialog(
                     this,
-                    "El odontólogo se desactivó "
-                            + "correctamente.",
+                    "El odontólogo se desactivó correctamente.",
                     "Odontólogo desactivado",
                     JOptionPane.INFORMATION_MESSAGE
             );
@@ -588,49 +800,41 @@ public class PanelListaOdontologos extends JPanel {
             refrescarLista(usuario);
 
         } catch (IllegalArgumentException exception) {
-            mostrarError(
-                    exception.getMessage()
-            );
+            mostrarError(exception.getMessage());
 
         } catch (RuntimeException exception) {
             exception.printStackTrace();
 
             mostrarError(
-                    "No se pudo desactivar "
-                            + "al odontólogo."
+                    "No se pudo desactivar al odontólogo."
             );
         }
     }
 
     private Long obtenerIdSeleccionado() {
-        int filaVista =
-                tabla.getSelectedRow();
+        int filaVista = tabla.getSelectedRow();
 
         if (filaVista < 0) {
             mostrarError(
                     "Debe seleccionar un odontólogo."
             );
-
             return null;
         }
 
-        int filaModelo =
-                tabla.convertRowIndexToModel(
-                        filaVista
-                );
+        int filaModelo = tabla.convertRowIndexToModel(
+                filaVista
+        );
 
-        Object valorId =
-                contenidoTabla.getValueAt(
-                        filaModelo,
-                        0
-                );
+        Object valorId = contenidoTabla.getValueAt(
+                filaModelo,
+                0
+        );
 
         if (!(valorId instanceof Number)) {
             mostrarError(
                     "No se pudo identificar "
                             + "al odontólogo seleccionado."
             );
-
             return null;
         }
 
