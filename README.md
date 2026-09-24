@@ -4,6 +4,8 @@
   <img src="https://github.com/facuvita19/app-odontologos/actions/workflows/maven-tests.yml/badge.svg" alt="Pruebas Maven">
 </a
 
+<br>
+
 Aplicación de escritorio desarrollada con Java Swing para gestionar pacientes, odontólogos, usuarios y turnos de una clínica odontológica.
 
 El sistema incorpora autenticación por roles, agenda laboral configurable, cálculo automático de horarios disponibles, seguimiento del estado de los turnos, estadísticas administrativas, gráficos y persistencia en MySQL mediante JDBC.
