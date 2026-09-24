@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Time;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -30,33 +31,23 @@ public class TurnoDAOMySQL implements TurnoDAO {
     }
 
     private void insertar(Turno turno) {
-    	String sql =
-    	        "INSERT INTO turnos "
-    	        + "(paciente_id, odontologo_id, usuario_id, "
-    	        + "fecha, hora_inicio, hora_fin, estado) "
-    	        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql =
+                "INSERT INTO turnos "
+                + "(paciente_id, odontologo_id, usuario_id, "
+                + "fecha, hora_inicio, hora_fin, estado, "
+                + "motivo_consulta, observaciones) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
-                PreparedStatement sentencia =
-                        conexion.prepareStatement(
-                                sql,
-                                Statement.RETURN_GENERATED_KEYS
-                        )
+                Connection conexion = ConexionBD.obtenerConexion();
+                PreparedStatement sentencia = conexion.prepareStatement(
+                        sql,
+                        Statement.RETURN_GENERATED_KEYS
+                )
         ) {
-            cargarParametros(
-                    sentencia,
-                    turno
-            );
-            sentencia.setString(
-                    7,
-                    obtenerEstado(turno).name()
-            );
+            cargarParametros(sentencia, turno);
 
-            int filasAfectadas =
-                    sentencia.executeUpdate();
+            int filasAfectadas = sentencia.executeUpdate();
 
             if (filasAfectadas == 0) {
                 throw new RuntimeException(
@@ -69,69 +60,51 @@ public class TurnoDAOMySQL implements TurnoDAO {
                             sentencia.getGeneratedKeys()
             ) {
                 if (clavesGeneradas.next()) {
-                    turno.setId(
-                            clavesGeneradas.getLong(1)
-                    );
+                    turno.setId(clavesGeneradas.getLong(1));
                 }
             }
 
         } catch (SQLException exception) {
             throw new RuntimeException(
-                    "No se pudo guardar el turno "
-                            + "en MySQL.",
+                    "No se pudo guardar el turno en MySQL.",
                     exception
             );
         }
     }
 
     private void actualizar(Turno turno) {
-    	String sql =
-    	        "UPDATE turnos "
-    	        + "SET paciente_id = ?, "
-    	        + "odontologo_id = ?, "
-    	        + "usuario_id = ?, "
-    	        + "fecha = ?, "
-    	        + "hora_inicio = ?, "
-    	        + "hora_fin = ?, "
-    	        + "estado = ? "
-    	        + "WHERE id = ?";
+        String sql =
+                "UPDATE turnos "
+                + "SET paciente_id = ?, "
+                + "odontologo_id = ?, "
+                + "usuario_id = ?, "
+                + "fecha = ?, "
+                + "hora_inicio = ?, "
+                + "hora_fin = ?, "
+                + "estado = ?, "
+                + "motivo_consulta = ?, "
+                + "observaciones = ? "
+                + "WHERE id = ?";
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
+                Connection conexion = ConexionBD.obtenerConexion();
                 PreparedStatement sentencia =
                         conexion.prepareStatement(sql)
         ) {
-            cargarParametros(
-                    sentencia,
-                    turno
-            );
+            cargarParametros(sentencia, turno);
+            sentencia.setLong(10, turno.getId());
 
-            sentencia.setString(
-                    7,
-                    obtenerEstado(turno).name()
-            );
-
-            sentencia.setLong(
-                    8,
-                    turno.getId()
-            );
-
-            int filasAfectadas =
-                    sentencia.executeUpdate();
+            int filasAfectadas = sentencia.executeUpdate();
 
             if (filasAfectadas == 0) {
                 throw new IllegalArgumentException(
-                        "No existe el turno con ID "
-                                + turno.getId()
+                        "No existe el turno con ID " + turno.getId()
                 );
             }
 
         } catch (SQLException exception) {
             throw new RuntimeException(
-                    "No se pudo actualizar el turno "
-                            + "en MySQL.",
+                    "No se pudo actualizar el turno en MySQL.",
                     exception
             );
         }
@@ -142,60 +115,36 @@ public class TurnoDAOMySQL implements TurnoDAO {
             Turno turno)
             throws SQLException {
 
-        sentencia.setLong(
-                1,
-                turno.getPacienteId()
-        );
+        sentencia.setLong(1, turno.getPacienteId());
+        sentencia.setLong(2, turno.getOdontologoId());
+        sentencia.setLong(3, turno.getUsuarioId());
+        sentencia.setDate(4, convertirFecha(turno));
+        sentencia.setTime(5, Time.valueOf(turno.getHoraInicio()));
+        sentencia.setTime(6, Time.valueOf(turno.getHoraFin()));
+        sentencia.setString(7, obtenerEstado(turno).name());
+        sentencia.setString(8, textoNullable(turno.getMotivoConsulta()));
+        sentencia.setString(9, textoNullable(turno.getObservaciones()));
+    }
 
-        sentencia.setLong(
-                2,
-                turno.getOdontologoId()
-        );
-
-        sentencia.setLong(
-                3,
-                turno.getUsuarioId()
-        );
-
-        sentencia.setDate(
-                4,
-                convertirFecha(turno)
-        );
-
-        sentencia.setTime(
-                5,
-                Time.valueOf(
-                        turno.getHoraInicio()
-                )
-        );
-
-        sentencia.setTime(
-                6,
-                Time.valueOf(
-                        turno.getHoraFin()
-                )
-        );
+    private String textoNullable(String valor) {
+        if (valor == null || valor.trim().isEmpty()) {
+            return null;
+        }
+        return valor.trim();
     }
 
     @Override
     public void eliminar(long id) {
-        String sql =
-                "DELETE FROM turnos "
-                + "WHERE id = ?";
+        String sql = "DELETE FROM turnos WHERE id = ?";
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
+                Connection conexion = ConexionBD.obtenerConexion();
                 PreparedStatement sentencia =
                         conexion.prepareStatement(sql)
         ) {
             sentencia.setLong(1, id);
 
-            int filasAfectadas =
-                    sentencia.executeUpdate();
-
-            if (filasAfectadas == 0) {
+            if (sentencia.executeUpdate() == 0) {
                 throw new IllegalArgumentException(
                         "No existe el turno con ID " + id
                 );
@@ -203,8 +152,7 @@ public class TurnoDAOMySQL implements TurnoDAO {
 
         } catch (SQLException exception) {
             throw new RuntimeException(
-                    "No se pudo eliminar el turno "
-                            + "de MySQL.",
+                    "No se pudo eliminar el turno de MySQL.",
                     exception
             );
         }
@@ -212,55 +160,25 @@ public class TurnoDAOMySQL implements TurnoDAO {
 
     @Override
     public List<Turno> listar() {
-        String sql =
-                "SELECT "
-                + "t.id, "
-                + "t.paciente_id, "
-                + "t.odontologo_id, "
-                + "t.usuario_id, "
-                + "t.fecha, "
-                + "t.hora_inicio, "
-                + "t.hora_fin, "
-                + "t.estado, "
-                + "p.nombre AS paciente_nombre, "
-                + "p.apellido AS paciente_apellido, "
-                + "o.nombre AS odontologo_nombre, "
-                + "o.apellido AS odontologo_apellido, "
-                + "u.nombre_usuario "
-                + "FROM turnos t "
-                + "INNER JOIN pacientes p "
-                + "ON p.id = t.paciente_id "
-                + "INNER JOIN odontologos o "
-                + "ON o.id = t.odontologo_id "
-                + "INNER JOIN usuarios u "
-                + "ON u.id = t.usuario_id "
-                + "ORDER BY t.fecha, t.hora_inicio";
+        String sql = consultaBase()
+                + " ORDER BY t.fecha, t.hora_inicio";
 
-        List<Turno> turnos =
-                new ArrayList<>();
+        List<Turno> turnos = new ArrayList<>();
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
+                Connection conexion = ConexionBD.obtenerConexion();
                 PreparedStatement sentencia =
                         conexion.prepareStatement(sql);
-
-                ResultSet resultado =
-                        sentencia.executeQuery()
+                ResultSet resultado = sentencia.executeQuery()
         ) {
             while (resultado.next()) {
-                turnos.add(
-                        convertirResultado(resultado)
-                );
+                turnos.add(convertirResultado(resultado));
             }
-
             return turnos;
 
         } catch (SQLException exception) {
             throw new RuntimeException(
-                    "No se pudieron recuperar "
-                            + "los turnos de MySQL.",
+                    "No se pudieron recuperar los turnos de MySQL.",
                     exception
             );
         }
@@ -268,57 +186,47 @@ public class TurnoDAOMySQL implements TurnoDAO {
 
     @Override
     public Turno buscar(long id) {
-        String sql =
-                "SELECT "
-                + "t.id, "
-                + "t.paciente_id, "
-                + "t.odontologo_id, "
-                + "t.usuario_id, "
-                + "t.fecha, "
-                + "t.hora_inicio, "
-                + "t.hora_fin, "
-                + "t.estado, "
-                + "p.nombre AS paciente_nombre, "
-                + "p.apellido AS paciente_apellido, "
-                + "o.nombre AS odontologo_nombre, "
-                + "o.apellido AS odontologo_apellido, "
-                + "u.nombre_usuario "
-                + "FROM turnos t "
-                + "INNER JOIN pacientes p "
-                + "ON p.id = t.paciente_id "
-                + "INNER JOIN odontologos o "
-                + "ON o.id = t.odontologo_id "
-                + "INNER JOIN usuarios u "
-                + "ON u.id = t.usuario_id "
-                + "WHERE t.id = ?";
+        String sql = consultaBase() + " WHERE t.id = ?";
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
+                Connection conexion = ConexionBD.obtenerConexion();
                 PreparedStatement sentencia =
                         conexion.prepareStatement(sql)
         ) {
             sentencia.setLong(1, id);
 
             try (
-                    ResultSet resultado =
-                            sentencia.executeQuery()
+                    ResultSet resultado = sentencia.executeQuery()
             ) {
                 if (resultado.next()) {
                     return convertirResultado(resultado);
                 }
             }
-
             return null;
 
         } catch (SQLException exception) {
             throw new RuntimeException(
-                    "No se pudo buscar el turno "
-                            + "en MySQL.",
+                    "No se pudo buscar el turno en MySQL.",
                     exception
             );
         }
+    }
+
+    private String consultaBase() {
+        return "SELECT "
+                + "t.id, t.paciente_id, t.odontologo_id, "
+                + "t.usuario_id, t.fecha, t.hora_inicio, "
+                + "t.hora_fin, t.estado, t.motivo_consulta, "
+                + "t.observaciones, t.fecha_creacion, "
+                + "p.nombre AS paciente_nombre, "
+                + "p.apellido AS paciente_apellido, "
+                + "o.nombre AS odontologo_nombre, "
+                + "o.apellido AS odontologo_apellido, "
+                + "u.nombre_usuario "
+                + "FROM turnos t "
+                + "INNER JOIN pacientes p ON p.id = t.paciente_id "
+                + "INNER JOIN odontologos o ON o.id = t.odontologo_id "
+                + "INNER JOIN usuarios u ON u.id = t.usuario_id";
     }
 
     @Override
@@ -330,8 +238,7 @@ public class TurnoDAOMySQL implements TurnoDAO {
             long turnoExcluidoId) {
 
         String sql =
-                "SELECT COUNT(*) "
-                + "FROM turnos "
+                "SELECT COUNT(*) FROM turnos "
                 + "WHERE odontologo_id = ? "
                 + "AND fecha = ? "
                 + "AND id <> ? "
@@ -340,199 +247,118 @@ public class TurnoDAOMySQL implements TurnoDAO {
                 + "AND estado <> 'CANCELADO'";
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
+                Connection conexion = ConexionBD.obtenerConexion();
                 PreparedStatement sentencia =
                         conexion.prepareStatement(sql)
         ) {
-            sentencia.setLong(
-                    1,
-                    odontologoId
-            );
-
-            sentencia.setDate(
-                    2,
-                    Date.valueOf(fecha)
-            );
-
-            sentencia.setLong(
-                    3,
-                    turnoExcluidoId
-            );
-
-            sentencia.setTime(
-                    4,
-                    Time.valueOf(horaFin)
-            );
-
-            sentencia.setTime(
-                    5,
-                    Time.valueOf(horaInicio)
-            );
+            sentencia.setLong(1, odontologoId);
+            sentencia.setDate(2, Date.valueOf(fecha));
+            sentencia.setLong(3, turnoExcluidoId);
+            sentencia.setTime(4, Time.valueOf(horaFin));
+            sentencia.setTime(5, Time.valueOf(horaInicio));
 
             try (
-                    ResultSet resultado =
-                            sentencia.executeQuery()
+                    ResultSet resultado = sentencia.executeQuery()
             ) {
                 resultado.next();
-
                 return resultado.getInt(1) > 0;
             }
 
         } catch (SQLException exception) {
             throw new RuntimeException(
-                    "No se pudo comprobar "
-                            + "la disponibilidad del horario.",
+                    "No se pudo comprobar la disponibilidad del horario.",
                     exception
             );
         }
     }
 
-    private Turno convertirResultado(
-            ResultSet resultado)
+    private Turno convertirResultado(ResultSet resultado)
             throws SQLException {
 
         Turno turno = new Turno();
+        turno.setId(resultado.getLong("id"));
+        turno.setPacienteId(resultado.getLong("paciente_id"));
+        turno.setOdontologoId(resultado.getLong("odontologo_id"));
+        turno.setUsuarioId(resultado.getLong("usuario_id"));
 
-        turno.setId(
-                resultado.getLong("id")
-        );
-
-        turno.setPacienteId(
-                resultado.getLong("paciente_id")
-        );
-
-        turno.setOdontologoId(
-                resultado.getLong("odontologo_id")
-        );
-
-        turno.setUsuarioId(
-                resultado.getLong("usuario_id")
-        );
-
-        LocalDate fecha =
-                resultado.getDate("fecha")
-                        .toLocalDate();
-
-        turno.setDia(
-                fecha.getDayOfMonth()
-        );
-
-        turno.setMes(
-                fecha.getMonthValue()
-        );
-
-        turno.setAño(
-                fecha.getYear()
-        );
+        LocalDate fecha = resultado.getDate("fecha").toLocalDate();
+        turno.setDia(fecha.getDayOfMonth());
+        turno.setMes(fecha.getMonthValue());
+        turno.setAño(fecha.getYear());
 
         turno.setHoraInicio(
-                resultado.getTime("hora_inicio")
-                        .toLocalTime()
+                resultado.getTime("hora_inicio").toLocalTime()
         );
-
         turno.setHoraFin(
-                resultado.getTime("hora_fin")
-                        .toLocalTime()
+                resultado.getTime("hora_fin").toLocalTime()
         );
 
         turno.setNomPaciente(
-                resultado.getString(
-                        "paciente_nombre"
-                )
+                resultado.getString("paciente_nombre")
                         + " "
-                        + resultado.getString(
-                                "paciente_apellido"
-                        )
+                        + resultado.getString("paciente_apellido")
         );
-
         turno.setNomOdontologo(
-                resultado.getString(
-                        "odontologo_nombre"
-                )
+                resultado.getString("odontologo_nombre")
                         + " "
-                        + resultado.getString(
-                                "odontologo_apellido"
-                        )
+                        + resultado.getString("odontologo_apellido")
         );
+        turno.setNomUsuario(resultado.getString("nombre_usuario"));
+        turno.setMotivoConsulta(resultado.getString("motivo_consulta"));
+        turno.setObservaciones(resultado.getString("observaciones"));
 
-        turno.setNomUsuario(
-                resultado.getString(
-                        "nombre_usuario"
-                )
-        );
-
-        String estadoTexto =
-                resultado.getString("estado");
-
-        try {
-            turno.setEstado(
-                    EstadoTurno.valueOf(estadoTexto)
-            );
-
-        } catch (IllegalArgumentException
-                | NullPointerException exception) {
-
-            turno.setEstado(
-                    EstadoTurno.PENDIENTE
-            );
+        Timestamp fechaCreacion =
+                resultado.getTimestamp("fecha_creacion");
+        if (fechaCreacion != null) {
+            turno.setFechaCreacion(fechaCreacion.toLocalDateTime());
         }
+
+        String estadoTexto = resultado.getString("estado");
+        try {
+            turno.setEstado(EstadoTurno.valueOf(estadoTexto));
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            turno.setEstado(EstadoTurno.PENDIENTE);
+        }
+
         return turno;
     }
 
-    private Date convertirFecha(
-            Turno turno) {
-
-        LocalDate fecha =
+    private Date convertirFecha(Turno turno) {
+        return Date.valueOf(
                 LocalDate.of(
                         turno.getAño(),
                         turno.getMes(),
                         turno.getDia()
-                );
-
-        return Date.valueOf(fecha);
+                )
+        );
     }
 
-    private void resolverUsuarioId(
-            Turno turno) {
-
+    private void resolverUsuarioId(Turno turno) {
         if (turno.getUsuarioId() > 0) {
             return;
         }
 
         if (turno.getNomUsuario() == null
-                || turno.getNomUsuario()
-                        .trim()
-                        .isEmpty()) {
-
+                || turno.getNomUsuario().trim().isEmpty()) {
             throw new IllegalArgumentException(
-                    "No se pudo identificar "
-                            + "al usuario del turno."
+                    "No se pudo identificar al usuario del turno."
             );
         }
 
         String sql =
-                "SELECT id "
-                + "FROM usuarios "
+                "SELECT id FROM usuarios "
                 + "WHERE LOWER(nombre_usuario) = LOWER(?) "
                 + "AND activo = TRUE";
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
+                Connection conexion = ConexionBD.obtenerConexion();
                 PreparedStatement sentencia =
                         conexion.prepareStatement(sql)
         ) {
-            sentencia.setString(
-                    1,
-                    turno.getNomUsuario().trim()
-            );
+            sentencia.setString(1, turno.getNomUsuario().trim());
 
             try (
-                    ResultSet resultado =
-                            sentencia.executeQuery()
+                    ResultSet resultado = sentencia.executeQuery()
             ) {
                 if (!resultado.next()) {
                     throw new IllegalArgumentException(
@@ -540,20 +366,17 @@ public class TurnoDAOMySQL implements TurnoDAO {
                                     + "no existe o está inactivo."
                     );
                 }
-
-                turno.setUsuarioId(
-                        resultado.getLong("id")
-                );
+                turno.setUsuarioId(resultado.getLong("id"));
             }
 
         } catch (SQLException exception) {
             throw new RuntimeException(
-                    "No se pudo identificar al usuario "
-                            + "del turno.",
+                    "No se pudo identificar al usuario del turno.",
                     exception
             );
         }
     }
+
     @Override
     public void actualizarEstado(
             long turnoId,
@@ -566,52 +389,33 @@ public class TurnoDAOMySQL implements TurnoDAO {
         }
 
         String sql =
-                "UPDATE turnos "
-                + "SET estado = ? "
-                + "WHERE id = ?";
+                "UPDATE turnos SET estado = ? WHERE id = ?";
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
+                Connection conexion = ConexionBD.obtenerConexion();
                 PreparedStatement sentencia =
                         conexion.prepareStatement(sql)
         ) {
-            sentencia.setString(
-                    1,
-                    estado.name()
-            );
+            sentencia.setString(1, estado.name());
+            sentencia.setLong(2, turnoId);
 
-            sentencia.setLong(
-                    2,
-                    turnoId
-            );
-
-            int filasAfectadas =
-                    sentencia.executeUpdate();
-
-            if (filasAfectadas == 0) {
+            if (sentencia.executeUpdate() == 0) {
                 throw new IllegalArgumentException(
-                        "No existe el turno con ID "
-                                + turnoId
+                        "No existe el turno con ID " + turnoId
                 );
             }
 
         } catch (SQLException exception) {
             throw new RuntimeException(
-                    "No se pudo actualizar el estado "
-                            + "del turno en MySQL.",
+                    "No se pudo actualizar el estado del turno en MySQL.",
                     exception
             );
         }
     }
-    private EstadoTurno obtenerEstado(
-            Turno turno) {
 
-        if (turno.getEstado() == null) {
-            return EstadoTurno.PENDIENTE;
-        }
-
-        return turno.getEstado();
+    private EstadoTurno obtenerEstado(Turno turno) {
+        return turno.getEstado() == null
+                ? EstadoTurno.PENDIENTE
+                : turno.getEstado();
     }
 }

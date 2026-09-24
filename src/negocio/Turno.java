@@ -1,6 +1,7 @@
 package negocio;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 public class Turno implements Serializable {
@@ -15,25 +16,20 @@ public class Turno implements Serializable {
     private LocalTime horaFin;
 
     private long id;
-
-    /*
-     * Identificadores utilizados por MySQL.
-     */
     private long odontologoId;
     private long pacienteId;
     private long usuarioId;
 
-    /*
-     * Nombres utilizados para mostrar información
-     * en las pantallas actuales.
-     */
     private String nomOdontologo;
     private String nomPaciente;
     private String nomUsuario;
-    
-    private EstadoTurno estado =
-    		EstadoTurno.PENDIENTE;
-    
+
+    private String motivoConsulta;
+    private String observaciones;
+    private LocalDateTime fechaCreacion;
+
+    private EstadoTurno estado = EstadoTurno.PENDIENTE;
+
     public Turno() {
     }
 
@@ -134,9 +130,7 @@ public class Turno implements Serializable {
         return nomOdontologo;
     }
 
-    public void setNomOdontologo(
-            String nomOdontologo) {
-
+    public void setNomOdontologo(String nomOdontologo) {
         this.nomOdontologo = nomOdontologo;
     }
 
@@ -144,9 +138,7 @@ public class Turno implements Serializable {
         return nomPaciente;
     }
 
-    public void setNomPaciente(
-            String nomPaciente) {
-
+    public void setNomPaciente(String nomPaciente) {
         this.nomPaciente = nomPaciente;
     }
 
@@ -154,20 +146,41 @@ public class Turno implements Serializable {
         return nomUsuario;
     }
 
-    public void setNomUsuario(
-            String nomUsuario) {
-
+    public void setNomUsuario(String nomUsuario) {
         this.nomUsuario = nomUsuario;
     }
+
+    public String getMotivoConsulta() {
+        return motivoConsulta;
+    }
+
+    public void setMotivoConsulta(String motivoConsulta) {
+        this.motivoConsulta = motivoConsulta;
+    }
+
+    public String getObservaciones() {
+        return observaciones;
+    }
+
+    public void setObservaciones(String observaciones) {
+        this.observaciones = observaciones;
+    }
+
+    public LocalDateTime getFechaCreacion() {
+        return fechaCreacion;
+    }
+
+    public void setFechaCreacion(LocalDateTime fechaCreacion) {
+        this.fechaCreacion = fechaCreacion;
+    }
+
     public EstadoTurno getEstado() {
         return estado;
     }
 
     public void setEstado(EstadoTurno estado) {
-        if (estado == null) {
-            this.estado = EstadoTurno.PENDIENTE;
-        } else {
-            this.estado = estado;
-        }
+        this.estado = estado == null
+                ? EstadoTurno.PENDIENTE
+                : estado;
     }
 }

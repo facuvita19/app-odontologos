@@ -5,33 +5,72 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Time;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import config.ConexionBD;
+import negocio.Especialidad;
 import negocio.Odontologo;
 
 public class OdontologoDAOMySQL implements OdontologoDAO {
 
     @Override
     public void guardar(Odontologo odontologo) {
-        if (odontologo.getId() == 0) {
-            insertar(odontologo);
-        } else {
-            actualizar(odontologo);
+        Connection conexion = null;
+
+        try {
+            conexion = ConexionBD.obtenerConexion();
+            conexion.setAutoCommit(false);
+
+            if (odontologo.getId() == 0) {
+                insertar(conexion, odontologo);
+            } else {
+                actualizar(conexion, odontologo);
+            }
+
+            guardarDiasAtencion(
+                    conexion,
+                    odontologo
+            );
+
+            conexion.commit();
+
+        } catch (SQLException exception) {
+            revertirTransaccion(conexion);
+
+            throw new RuntimeException(
+                    "No se pudo guardar el odontólogo "
+                            + "y su agenda en MySQL.",
+                    exception
+            );
+
+        } catch (RuntimeException exception) {
+            revertirTransaccion(conexion);
+            throw exception;
+
+        } finally {
+            cerrarConexion(conexion);
         }
     }
 
-    private void insertar(Odontologo odontologo) {
+    private void insertar(
+            Connection conexion,
+            Odontologo odontologo)
+            throws SQLException {
+
         String sql =
                 "INSERT INTO odontologos "
-                + "(nombre, apellido, matricula, edad, activo) "
-                + "VALUES (?, ?, ?, ?, TRUE)";
+                + "(nombre, apellido, matricula, edad, "
+                + "especialidad, hora_inicio, hora_fin, "
+                + "duracion_turno, activo) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)";
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
                 PreparedStatement sentencia =
                         conexion.prepareStatement(
                                 sql,
@@ -56,35 +95,39 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
                     ResultSet clavesGeneradas =
                             sentencia.getGeneratedKeys()
             ) {
-                if (clavesGeneradas.next()) {
-                    odontologo.setId(
-                            clavesGeneradas.getLong(1)
+                if (!clavesGeneradas.next()) {
+                    throw new RuntimeException(
+                            "No se pudo recuperar el ID "
+                                    + "del odontólogo creado."
                     );
                 }
-            }
 
-        } catch (SQLException exception) {
-            throw new RuntimeException(
-                    "No se pudo guardar el odontólogo "
-                            + "en MySQL.",
-                    exception
-            );
+                odontologo.setId(
+                        clavesGeneradas.getLong(1)
+                );
+            }
         }
     }
 
-    private void actualizar(Odontologo odontologo) {
+    private void actualizar(
+            Connection conexion,
+            Odontologo odontologo)
+            throws SQLException {
+
         String sql =
                 "UPDATE odontologos "
                 + "SET nombre = ?, "
                 + "apellido = ?, "
                 + "matricula = ?, "
-                + "edad = ? "
-                + "WHERE id = ?";
+                + "edad = ?, "
+                + "especialidad = ?, "
+                + "hora_inicio = ?, "
+                + "hora_fin = ?, "
+                + "duracion_turno = ? "
+                + "WHERE id = ? "
+                + "AND activo = TRUE";
 
         try (
-                Connection conexion =
-                        ConexionBD.obtenerConexion();
-
                 PreparedStatement sentencia =
                         conexion.prepareStatement(sql)
         ) {
@@ -94,7 +137,7 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
             );
 
             sentencia.setLong(
-                    5,
+                    9,
                     odontologo.getId()
             );
 
@@ -103,17 +146,10 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
 
             if (filasAfectadas == 0) {
                 throw new IllegalArgumentException(
-                        "No existe el odontólogo con ID "
+                        "No existe un odontólogo activo con ID "
                                 + odontologo.getId()
                 );
             }
-
-        } catch (SQLException exception) {
-            throw new RuntimeException(
-                    "No se pudo actualizar el odontólogo "
-                            + "en MySQL.",
-                    exception
-            );
         }
     }
 
@@ -143,6 +179,91 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
                 4,
                 odontologo.getEdad()
         );
+
+        sentencia.setString(
+                5,
+                odontologo.getEspecialidad().name()
+        );
+
+        sentencia.setTime(
+                6,
+                Time.valueOf(
+                        odontologo.getHoraInicio()
+                )
+        );
+
+        sentencia.setTime(
+                7,
+                Time.valueOf(
+                        odontologo.getHoraFin()
+                )
+        );
+
+        sentencia.setInt(
+                8,
+                odontologo.getDuracionTurno()
+        );
+    }
+
+    private void guardarDiasAtencion(
+            Connection conexion,
+            Odontologo odontologo)
+            throws SQLException {
+
+        eliminarDiasAtencion(
+                conexion,
+                odontologo.getId()
+        );
+
+        String sql =
+                "INSERT INTO odontologo_dias_atencion "
+                + "(odontologo_id, dia_semana) "
+                + "VALUES (?, ?)";
+
+        try (
+                PreparedStatement sentencia =
+                        conexion.prepareStatement(sql)
+        ) {
+            for (DayOfWeek dia :
+                    odontologo.getDiasAtencion()) {
+
+                sentencia.setLong(
+                        1,
+                        odontologo.getId()
+                );
+
+                sentencia.setString(
+                        2,
+                        dia.name()
+                );
+
+                sentencia.addBatch();
+            }
+
+            sentencia.executeBatch();
+        }
+    }
+
+    private void eliminarDiasAtencion(
+            Connection conexion,
+            long odontologoId)
+            throws SQLException {
+
+        String sql =
+                "DELETE FROM odontologo_dias_atencion "
+                + "WHERE odontologo_id = ?";
+
+        try (
+                PreparedStatement sentencia =
+                        conexion.prepareStatement(sql)
+        ) {
+            sentencia.setLong(
+                    1,
+                    odontologoId
+            );
+
+            sentencia.executeUpdate();
+        }
     }
 
     @Override
@@ -184,8 +305,9 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
     @Override
     public List<Odontologo> listar() {
         String sql =
-                "SELECT id, nombre, apellido, "
-                + "matricula, edad "
+                "SELECT id, nombre, apellido, matricula, edad, "
+                + "especialidad, hora_inicio, hora_fin, "
+                + "duracion_turno "
                 + "FROM odontologos "
                 + "WHERE activo = TRUE "
                 + "ORDER BY apellido, nombre";
@@ -204,9 +326,17 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
                         sentencia.executeQuery()
         ) {
             while (resultado.next()) {
-                odontologos.add(
-                        convertirResultado(resultado)
+                Odontologo odontologo =
+                        convertirResultado(resultado);
+
+                odontologo.setDiasAtencion(
+                        buscarDiasAtencion(
+                                conexion,
+                                odontologo.getId()
+                        )
                 );
+
+                odontologos.add(odontologo);
             }
 
             return odontologos;
@@ -223,10 +353,12 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
     @Override
     public Odontologo buscar(long id) {
         String sql =
-                "SELECT id, nombre, apellido, "
-                + "matricula, edad "
+                "SELECT id, nombre, apellido, matricula, edad, "
+                + "especialidad, hora_inicio, hora_fin, "
+                + "duracion_turno "
                 + "FROM odontologos "
-                + "WHERE id = ?";
+                + "WHERE id = ? "
+                + "AND activo = TRUE";
 
         try (
                 Connection conexion =
@@ -241,12 +373,22 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
                     ResultSet resultado =
                             sentencia.executeQuery()
             ) {
-                if (resultado.next()) {
-                    return convertirResultado(resultado);
+                if (!resultado.next()) {
+                    return null;
                 }
-            }
 
-            return null;
+                Odontologo odontologo =
+                        convertirResultado(resultado);
+
+                odontologo.setDiasAtencion(
+                        buscarDiasAtencion(
+                                conexion,
+                                odontologo.getId()
+                        )
+                );
+
+                return odontologo;
+            }
 
         } catch (SQLException exception) {
             throw new RuntimeException(
@@ -290,7 +432,6 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
                             sentencia.executeQuery()
             ) {
                 resultado.next();
-
                 return resultado.getInt(1) > 0;
             }
 
@@ -301,6 +442,55 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
                     exception
             );
         }
+    }
+
+    private Set<DayOfWeek> buscarDiasAtencion(
+            Connection conexion,
+            long odontologoId)
+            throws SQLException {
+
+        String sql =
+                "SELECT dia_semana "
+                + "FROM odontologo_dias_atencion "
+                + "WHERE odontologo_id = ?";
+
+        Set<DayOfWeek> dias =
+                EnumSet.noneOf(DayOfWeek.class);
+
+        try (
+                PreparedStatement sentencia =
+                        conexion.prepareStatement(sql)
+        ) {
+            sentencia.setLong(
+                    1,
+                    odontologoId
+            );
+
+            try (
+                    ResultSet resultado =
+                            sentencia.executeQuery()
+            ) {
+                while (resultado.next()) {
+                    String valor =
+                            resultado.getString(
+                                    "dia_semana"
+                            );
+
+                    try {
+                        dias.add(
+                                DayOfWeek.valueOf(valor)
+                        );
+                    } catch (IllegalArgumentException exception) {
+                        System.err.println(
+                                "Día de atención inválido: "
+                                        + valor
+                        );
+                    }
+                }
+            }
+        }
+
+        return dias;
     }
 
     private Odontologo convertirResultado(
@@ -332,7 +522,90 @@ public class OdontologoDAOMySQL implements OdontologoDAO {
                 resultado.getInt("edad")
         );
 
+        odontologo.setEspecialidad(
+                convertirEspecialidad(
+                        resultado.getString("especialidad")
+                )
+        );
+
+        odontologo.setHoraInicio(
+                convertirHora(
+                        resultado.getTime("hora_inicio"),
+                        LocalTime.of(8, 0)
+                )
+        );
+
+        odontologo.setHoraFin(
+                convertirHora(
+                        resultado.getTime("hora_fin"),
+                        LocalTime.of(20, 0)
+                )
+        );
+
+        odontologo.setDuracionTurno(
+                resultado.getInt("duracion_turno")
+        );
+
         return odontologo;
     }
-    
+
+    private Especialidad convertirEspecialidad(
+            String valor) {
+
+        if (valor == null || valor.trim().isEmpty()) {
+            return Especialidad.ODONTOLOGIA_GENERAL;
+        }
+
+        try {
+            return Especialidad.valueOf(
+                    valor.trim().toUpperCase()
+            );
+        } catch (IllegalArgumentException exception) {
+            return Especialidad.ODONTOLOGIA_GENERAL;
+        }
+    }
+
+    private LocalTime convertirHora(
+            Time hora,
+            LocalTime valorPredeterminado) {
+
+        if (hora == null) {
+            return valorPredeterminado;
+        }
+
+        return hora.toLocalTime();
+    }
+
+    private void revertirTransaccion(
+            Connection conexion) {
+
+        if (conexion == null) {
+            return;
+        }
+
+        try {
+            conexion.rollback();
+        } catch (SQLException exception) {
+            System.err.println(
+                    "No se pudo revertir la transacción."
+            );
+        }
+    }
+
+    private void cerrarConexion(
+            Connection conexion) {
+
+        if (conexion == null) {
+            return;
+        }
+
+        try {
+            conexion.setAutoCommit(true);
+            conexion.close();
+        } catch (SQLException exception) {
+            System.err.println(
+                    "No se pudo cerrar la conexión."
+            );
+        }
+    }
 }
