@@ -2,7 +2,10 @@ package negocio;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ResumenEstadisticas {
 
@@ -16,6 +19,12 @@ public class ResumenEstadisticas {
     private int turnosHoy;
 
     private List<Turno> turnosDelDia = new ArrayList<>();
+
+    private Map<EstadoTurno, Integer> turnosPorEstado =
+            new EnumMap<>(EstadoTurno.class);
+
+    private Map<String, Integer> turnosPorMes =
+            new LinkedHashMap<>();
 
     public int getPacientesActivos() {
         return pacientesActivos;
@@ -89,5 +98,34 @@ public class ResumenEstadisticas {
         this.turnosDelDia = turnosDelDia == null
                 ? new ArrayList<>()
                 : new ArrayList<>(turnosDelDia);
+    }
+
+    public Map<EstadoTurno, Integer> getTurnosPorEstado() {
+        return Collections.unmodifiableMap(turnosPorEstado);
+    }
+
+    public void setTurnosPorEstado(
+            Map<EstadoTurno, Integer> turnosPorEstado) {
+
+        this.turnosPorEstado =
+                new EnumMap<>(EstadoTurno.class);
+
+        if (turnosPorEstado != null) {
+            this.turnosPorEstado.putAll(turnosPorEstado);
+        }
+    }
+
+    public Map<String, Integer> getTurnosPorMes() {
+        return Collections.unmodifiableMap(turnosPorMes);
+    }
+
+    public void setTurnosPorMes(
+            Map<String, Integer> turnosPorMes) {
+
+        this.turnosPorMes = new LinkedHashMap<>();
+
+        if (turnosPorMes != null) {
+            this.turnosPorMes.putAll(turnosPorMes);
+        }
     }
 }
