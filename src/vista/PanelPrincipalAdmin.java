@@ -33,10 +33,10 @@ public class PanelPrincipalAdmin extends JPanel {
     private JButton btnPacientes;
     private JButton btnOdontologos;
     private JButton btnTurnos;
+    private JButton btnEstadisticas;
     private JButton btnCerrarSesion;
 
     private JMenuBar menuBar;
-
     private JMenu menuGestion;
     private JMenu menuRegistrar;
     private JMenu menuCuenta;
@@ -44,11 +44,10 @@ public class PanelPrincipalAdmin extends JPanel {
     private JMenuItem itemVerOdontologos;
     private JMenuItem itemVerPacientes;
     private JMenuItem itemVerTurnos;
-
+    private JMenuItem itemVerEstadisticas;
     private JMenuItem itemNuevoOdontologo;
     private JMenuItem itemNuevoPaciente;
     private JMenuItem itemNuevoTurno;
-
     private JMenuItem itemCerrarSesion;
 
     private final PanelManager panelManager;
@@ -63,42 +62,24 @@ public class PanelPrincipalAdmin extends JPanel {
             String usuario) {
 
         removeAll();
-
         setLayout(new BorderLayout());
         setBackground(EstilosUI.FONDO_PRINCIPAL);
 
         menuBar = crearMenu(usuario);
 
-        JPanel encabezado =
-                crearEncabezado(usuario);
-
-        JPanel contenido =
-                crearContenidoPrincipal(usuario);
-
         JPanel panelSuperior =
-                new JPanel(
-                        new BorderLayout()
-                );
+                new JPanel(new BorderLayout());
 
         panelSuperior.setOpaque(false);
-
+        panelSuperior.add(menuBar, BorderLayout.NORTH);
         panelSuperior.add(
-                menuBar,
-                BorderLayout.NORTH
-        );
-
-        panelSuperior.add(
-                encabezado,
+                crearEncabezado(usuario),
                 BorderLayout.CENTER
         );
 
+        add(panelSuperior, BorderLayout.NORTH);
         add(
-                panelSuperior,
-                BorderLayout.NORTH
-        );
-
-        add(
-                contenido,
+                crearContenidoPrincipal(usuario),
                 BorderLayout.CENTER
         );
 
@@ -111,11 +92,7 @@ public class PanelPrincipalAdmin extends JPanel {
             String usuario) {
 
         JMenuBar barra = new JMenuBar();
-
-        barra.setBackground(
-                EstilosUI.FONDO_SECUNDARIO
-        );
-
+        barra.setBackground(EstilosUI.FONDO_SECUNDARIO);
         barra.setBorder(
                 BorderFactory.createMatteBorder(
                         0,
@@ -126,100 +103,39 @@ public class PanelPrincipalAdmin extends JPanel {
                 )
         );
 
-        menuGestion =
-                crearMenuEstilizado(
-                        "Gestión"
-                );
+        menuGestion = crearMenuEstilizado("Gestión");
+        menuRegistrar = crearMenuEstilizado("Registrar");
+        menuCuenta = crearMenuEstilizado("Cuenta");
 
-        menuRegistrar =
-                crearMenuEstilizado(
-                        "Registrar"
-                );
+        itemVerPacientes = crearItemMenu("Ver pacientes");
+        itemVerOdontologos = crearItemMenu("Ver odontólogos");
+        itemVerTurnos = crearItemMenu("Ver turnos");
+        itemVerEstadisticas = crearItemMenu("Estadísticas");
 
-        menuCuenta =
-                crearMenuEstilizado(
-                        "Cuenta"
-                );
-
-        itemVerPacientes =
-                crearItemMenu(
-                        "Ver pacientes"
-                );
-
-        itemVerOdontologos =
-                crearItemMenu(
-                        "Ver odontólogos"
-                );
-
-        itemVerTurnos =
-                crearItemMenu(
-                        "Ver turnos"
-                );
-
-        itemNuevoPaciente =
-                crearItemMenu(
-                        "Nuevo paciente"
-                );
-
-        itemNuevoOdontologo =
-                crearItemMenu(
-                        "Nuevo odontólogo"
-                );
-
-        itemNuevoTurno =
-                crearItemMenu(
-                        "Nuevo turno"
-                );
-
-        itemCerrarSesion =
-                crearItemMenu(
-                        "Cerrar sesión"
-                );
+        itemNuevoPaciente = crearItemMenu("Nuevo paciente");
+        itemNuevoOdontologo = crearItemMenu("Nuevo odontólogo");
+        itemNuevoTurno = crearItemMenu("Nuevo turno");
+        itemCerrarSesion = crearItemMenu("Cerrar sesión");
 
         configurarAtajos();
 
-        menuGestion.add(
-                itemVerPacientes
-        );
+        menuGestion.add(itemVerPacientes);
+        menuGestion.add(itemVerOdontologos);
+        menuGestion.add(itemVerTurnos);
+        menuGestion.addSeparator();
+        menuGestion.add(itemVerEstadisticas);
 
-        menuGestion.add(
-                itemVerOdontologos
-        );
+        menuRegistrar.add(itemNuevoPaciente);
+        menuRegistrar.add(itemNuevoOdontologo);
+        menuRegistrar.add(itemNuevoTurno);
 
-        menuGestion.add(
-                itemVerTurnos
-        );
+        menuCuenta.add(itemCerrarSesion);
 
-        menuRegistrar.add(
-                itemNuevoPaciente
-        );
-
-        menuRegistrar.add(
-                itemNuevoOdontologo
-        );
-
-        menuRegistrar.add(
-                itemNuevoTurno
-        );
-
-        menuCuenta.add(
-                itemCerrarSesion
-        );
-
-        barra.add(
-                menuGestion
-        );
-
-        barra.add(
-                menuRegistrar
-        );
-
-        barra.add(
-                menuCuenta
-        );
+        barra.add(menuGestion);
+        barra.add(menuRegistrar);
+        barra.add(menuCuenta);
 
         configurarEventosMenu(usuario);
-
         return barra;
     }
 
@@ -241,6 +157,13 @@ public class PanelPrincipalAdmin extends JPanel {
         itemVerTurnos.setAccelerator(
                 KeyStroke.getKeyStroke(
                         KeyEvent.VK_T,
+                        InputEvent.ALT_DOWN_MASK
+                )
+        );
+
+        itemVerEstadisticas.setAccelerator(
+                KeyStroke.getKeyStroke(
+                        KeyEvent.VK_E,
                         InputEvent.ALT_DOWN_MASK
                 )
         );
@@ -278,44 +201,41 @@ public class PanelPrincipalAdmin extends JPanel {
             String usuario) {
 
         itemVerPacientes.addActionListener(
-                evento ->
-                        abrirPacientes(usuario)
+                evento -> abrirPacientes(usuario)
         );
 
         itemVerOdontologos.addActionListener(
-                evento ->
-                        abrirOdontologos(usuario)
+                evento -> abrirOdontologos(usuario)
         );
 
         itemVerTurnos.addActionListener(
-                evento ->
-                        abrirTurnos(usuario)
+                evento -> abrirTurnos(usuario)
+        );
+
+        itemVerEstadisticas.addActionListener(
+                evento -> abrirEstadisticas(usuario)
         );
 
         itemNuevoPaciente.addActionListener(
-                evento ->
-                        panelManager
-                                .mostrarPanelFormularioPaciente(
-                                        usuario
-                                )
+                evento -> panelManager
+                        .mostrarPanelFormularioPaciente(
+                                usuario
+                        )
         );
 
         itemNuevoOdontologo.addActionListener(
-                evento ->
-                        panelManager
-                                .mostrarPanelFormularioOdontologo(
-                                        usuario
-                                )
+                evento -> panelManager
+                        .mostrarPanelFormularioOdontologo(
+                                usuario
+                        )
         );
 
         itemNuevoTurno.addActionListener(
-                evento ->
-                        crearTurno(usuario)
+                evento -> crearTurno(usuario)
         );
 
         itemCerrarSesion.addActionListener(
-                evento ->
-                        cerrarSesion()
+                evento -> cerrarSesion()
         );
     }
 
@@ -323,250 +243,139 @@ public class PanelPrincipalAdmin extends JPanel {
             String texto) {
 
         JMenu menu = new JMenu(texto);
-
-        menu.setFont(
-                EstilosUI.FUENTE_NORMAL
-        );
-
-        menu.setForeground(
-                EstilosUI.TEXTO_PRINCIPAL
-        );
-
-        menu.setBackground(
-                EstilosUI.FONDO_SECUNDARIO
-        );
-
+        menu.setFont(EstilosUI.FUENTE_NORMAL);
+        menu.setForeground(EstilosUI.TEXTO_PRINCIPAL);
+        menu.setBackground(EstilosUI.FONDO_SECUNDARIO);
         return menu;
     }
 
     private JMenuItem crearItemMenu(
             String texto) {
 
-        JMenuItem item =
-                new JMenuItem(texto);
-
-        item.setFont(
-                EstilosUI.FUENTE_NORMAL
-        );
-
-        item.setForeground(
-                EstilosUI.TEXTO_PRINCIPAL
-        );
-
-        item.setBackground(
-                EstilosUI.FONDO_SECUNDARIO
-        );
-
+        JMenuItem item = new JMenuItem(texto);
+        item.setFont(EstilosUI.FUENTE_NORMAL);
+        item.setForeground(EstilosUI.TEXTO_PRINCIPAL);
+        item.setBackground(EstilosUI.FONDO_SECUNDARIO);
         return item;
     }
 
     private JPanel crearEncabezado(
             String usuario) {
 
-        JPanel encabezado =
-                new JPanel();
-
+        JPanel encabezado = new JPanel();
         encabezado.setLayout(
                 new BoxLayout(
                         encabezado,
                         BoxLayout.Y_AXIS
                 )
         );
-
-        encabezado.setBackground(
-                EstilosUI.FONDO_PRINCIPAL
-        );
-
+        encabezado.setBackground(EstilosUI.FONDO_PRINCIPAL);
         encabezado.setBorder(
-                new EmptyBorder(
-                        30,
-                        45,
-                        20,
-                        45
-                )
+                new EmptyBorder(26, 45, 16, 45)
         );
 
-        JLabel titulo =
-                new JLabel(
-                        "Panel de administración"
-                );
-
-        titulo.setFont(
-                EstilosUI.FUENTE_TITULO
+        JLabel titulo = new JLabel(
+                "Panel de administración"
         );
+        titulo.setFont(EstilosUI.FUENTE_TITULO);
+        titulo.setForeground(EstilosUI.TEXTO_PRINCIPAL);
+        titulo.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        titulo.setForeground(
-                EstilosUI.TEXTO_PRINCIPAL
+        JLabel subtitulo = new JLabel(
+                "Gestione la clínica y consulte "
+                        + "sus indicadores principales"
         );
+        subtitulo.setFont(EstilosUI.FUENTE_NORMAL);
+        subtitulo.setForeground(EstilosUI.TEXTO_SECUNDARIO);
+        subtitulo.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        titulo.setAlignmentX(
-                Component.LEFT_ALIGNMENT
+        JLabel sesion = new JLabel(
+                "Sesión administrativa: " + usuario
         );
-
-        JLabel subtitulo =
-                new JLabel(
-                        "Gestione pacientes, "
-                                + "odontólogos y turnos"
-                );
-
-        subtitulo.setFont(
-                EstilosUI.FUENTE_NORMAL
-        );
-
-        subtitulo.setForeground(
-                EstilosUI.TEXTO_SECUNDARIO
-        );
-
-        subtitulo.setAlignmentX(
-                Component.LEFT_ALIGNMENT
-        );
-
-        JLabel sesion =
-                new JLabel(
-                        "Sesión administrativa: "
-                                + usuario
-                );
-
-        sesion.setFont(
-                EstilosUI.FUENTE_NORMAL
-        );
-
-        sesion.setForeground(
-                EstilosUI.TEXTO_SECUNDARIO
-        );
-
-        sesion.setAlignmentX(
-                Component.LEFT_ALIGNMENT
-        );
+        sesion.setFont(EstilosUI.FUENTE_NORMAL);
+        sesion.setForeground(EstilosUI.TEXTO_SECUNDARIO);
+        sesion.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         encabezado.add(titulo);
-
-        encabezado.add(
-                Box.createVerticalStrut(7)
-        );
-
+        encabezado.add(Box.createVerticalStrut(7));
         encabezado.add(subtitulo);
-
-        encabezado.add(
-                Box.createVerticalStrut(5)
-        );
-
+        encabezado.add(Box.createVerticalStrut(5));
         encabezado.add(sesion);
-
         return encabezado;
     }
 
     private JPanel crearContenidoPrincipal(
             String usuario) {
 
-        JPanel contenedor =
-                new JPanel(
-                        new GridBagLayout()
-                );
-
-        contenedor.setBackground(
-                EstilosUI.FONDO_PRINCIPAL
+        JPanel contenedor = new JPanel(
+                new GridBagLayout()
         );
-
+        contenedor.setBackground(EstilosUI.FONDO_PRINCIPAL);
         contenedor.setBorder(
-                new EmptyBorder(
-                        15,
-                        45,
-                        40,
-                        45
-                )
+                new EmptyBorder(12, 45, 35, 45)
         );
 
-        JPanel panelAcciones =
-                new JPanel(
-                        new GridLayout(
-                                2,
-                                2,
-                                18,
-                                18
-                        )
-                );
-
+        JPanel panelAcciones = new JPanel(
+                new GridLayout(2, 3, 18, 18)
+        );
         panelAcciones.setOpaque(false);
 
-        btnPacientes =
-                crearTarjetaAccion(
-                        "Pacientes",
-                        "Registrar, consultar, modificar "
-                                + "y administrar pacientes",
-                        EstilosUI.COLOR_PRIMARIO
-                );
-
-        btnOdontologos =
-                crearTarjetaAccion(
-                        "Odontólogos",
-                        "Registrar profesionales y "
-                                + "administrar sus datos",
-                        EstilosUI.COLOR_EXITO
-                );
-
-        btnTurnos =
-                crearTarjetaAccion(
-                        "Turnos",
-                        "Consultar reservas, modificar "
-                                + "horarios y cambiar estados",
-                        new Color(
-                                117,
-                                83,
-                                190
-                        )
-                );
-
-        btnCerrarSesion =
-                crearTarjetaAccion(
-                        "Cerrar sesión",
-                        "Finalizar la sesión administrativa "
-                                + "y volver al inicio",
-                        EstilosUI.COLOR_PELIGRO
-                );
-
-        panelAcciones.add(
-                btnPacientes
+        btnPacientes = crearTarjetaAccion(
+                "Pacientes",
+                "Registrar, consultar y administrar "
+                        + "fichas de pacientes",
+                EstilosUI.COLOR_PRIMARIO
         );
 
-        panelAcciones.add(
-                btnOdontologos
+        btnOdontologos = crearTarjetaAccion(
+                "Odontólogos",
+                "Gestionar profesionales, especialidades "
+                        + "y agendas",
+                EstilosUI.COLOR_EXITO
         );
 
-        panelAcciones.add(
-                btnTurnos
+        btnTurnos = crearTarjetaAccion(
+                "Turnos",
+                "Consultar reservas, horarios, "
+                        + "estados y detalles",
+                new Color(117, 83, 190)
         );
 
-        panelAcciones.add(
-                btnCerrarSesion
+        btnEstadisticas = crearTarjetaAccion(
+                "Estadísticas",
+                "Consultar indicadores generales "
+                        + "y la agenda de hoy",
+                new Color(45, 154, 180)
         );
+
+        btnCerrarSesion = crearTarjetaAccion(
+                "Cerrar sesión",
+                "Finalizar la sesión administrativa "
+                        + "y volver al inicio",
+                EstilosUI.COLOR_PELIGRO
+        );
+
+        JPanel espacio = new JPanel();
+        espacio.setOpaque(false);
+
+        panelAcciones.add(btnPacientes);
+        panelAcciones.add(btnOdontologos);
+        panelAcciones.add(btnTurnos);
+        panelAcciones.add(btnEstadisticas);
+        panelAcciones.add(btnCerrarSesion);
+        panelAcciones.add(espacio);
 
         GridBagConstraints restricciones =
                 new GridBagConstraints();
-
         restricciones.gridx = 0;
         restricciones.gridy = 0;
         restricciones.weightx = 1.0;
         restricciones.weighty = 1.0;
+        restricciones.fill = GridBagConstraints.BOTH;
+        restricciones.insets = new Insets(10, 10, 10, 10);
 
-        restricciones.fill =
-                GridBagConstraints.BOTH;
-
-        restricciones.insets =
-                new Insets(
-                        10,
-                        10,
-                        10,
-                        10
-                );
-
-        contenedor.add(
-                panelAcciones,
-                restricciones
-        );
-
+        contenedor.add(panelAcciones, restricciones);
         configurarEventosBotones(usuario);
-
         return contenedor;
     }
 
@@ -574,23 +383,23 @@ public class PanelPrincipalAdmin extends JPanel {
             String usuario) {
 
         btnPacientes.addActionListener(
-                evento ->
-                        abrirPacientes(usuario)
+                evento -> abrirPacientes(usuario)
         );
 
         btnOdontologos.addActionListener(
-                evento ->
-                        abrirOdontologos(usuario)
+                evento -> abrirOdontologos(usuario)
         );
 
         btnTurnos.addActionListener(
-                evento ->
-                        abrirTurnos(usuario)
+                evento -> abrirTurnos(usuario)
+        );
+
+        btnEstadisticas.addActionListener(
+                evento -> abrirEstadisticas(usuario)
         );
 
         btnCerrarSesion.addActionListener(
-                evento ->
-                        cerrarSesion()
+                evento -> cerrarSesion()
         );
     }
 
@@ -613,44 +422,19 @@ public class PanelPrincipalAdmin extends JPanel {
                         + "</div>"
                         + "</html>";
 
-        JButton boton =
-                new JButton(textoHtml);
-
-        boton.setFont(
-                EstilosUI.FUENTE_SUBTITULO
-        );
-
-        boton.setForeground(
-                EstilosUI.TEXTO_PRINCIPAL
-        );
-
-        boton.setBackground(
-                EstilosUI.FONDO_SECUNDARIO
-        );
-
-        boton.setHorizontalAlignment(
-                SwingConstants.LEFT
-        );
-
-        boton.setVerticalAlignment(
-                SwingConstants.CENTER
-        );
-
+        JButton boton = new JButton(textoHtml);
+        boton.setFont(EstilosUI.FUENTE_SUBTITULO);
+        boton.setForeground(EstilosUI.TEXTO_PRINCIPAL);
+        boton.setBackground(EstilosUI.FONDO_SECUNDARIO);
+        boton.setHorizontalAlignment(SwingConstants.LEFT);
+        boton.setVerticalAlignment(SwingConstants.CENTER);
         boton.setFocusPainted(false);
-
         boton.setCursor(
                 Cursor.getPredefinedCursor(
                         Cursor.HAND_CURSOR
                 )
         );
-
-        boton.setPreferredSize(
-                new Dimension(
-                        300,
-                        150
-                )
-        );
-
+        boton.setPreferredSize(new Dimension(250, 135));
         boton.setBorder(
                 BorderFactory.createCompoundBorder(
                         BorderFactory.createMatteBorder(
@@ -660,54 +444,34 @@ public class PanelPrincipalAdmin extends JPanel {
                                 0,
                                 colorAcento
                         ),
-                        new EmptyBorder(
-                                20,
-                                22,
-                                20,
-                                22
-                        )
+                        new EmptyBorder(18, 20, 18, 20)
                 )
         );
 
-        agregarHoverTarjeta(
-                boton
-        );
-
+        agregarHoverTarjeta(boton);
         return boton;
     }
 
     private void agregarHoverTarjeta(
             JButton boton) {
 
-        Color colorNormal =
-                EstilosUI.FONDO_SECUNDARIO;
-
-        Color colorHover =
-                new Color(
-                        51,
-                        57,
-                        67
-                );
+        Color colorNormal = EstilosUI.FONDO_SECUNDARIO;
+        Color colorHover = new Color(51, 57, 67);
 
         boton.addMouseListener(
                 new java.awt.event.MouseAdapter() {
-
                     @Override
                     public void mouseEntered(
                             java.awt.event.MouseEvent evento) {
 
-                        boton.setBackground(
-                                colorHover
-                        );
+                        boton.setBackground(colorHover);
                     }
 
                     @Override
                     public void mouseExited(
                             java.awt.event.MouseEvent evento) {
 
-                        boton.setBackground(
-                                colorNormal
-                        );
+                        boton.setBackground(colorNormal);
                     }
                 }
         );
@@ -716,28 +480,25 @@ public class PanelPrincipalAdmin extends JPanel {
     private void abrirPacientes(
             String usuario) {
 
-        panelManager
-                .mostrarPanelListaPacientes(
-                        usuario
-                );
+        panelManager.mostrarPanelListaPacientes(usuario);
     }
 
     private void abrirOdontologos(
             String usuario) {
 
-        panelManager
-                .mostrarPanelListaOdontologos(
-                        usuario
-                );
+        panelManager.mostrarPanelListaOdontologos(usuario);
     }
 
     private void abrirTurnos(
             String usuario) {
 
-        panelManager
-                .mostrarPanelListaTurnosAdmin(
-                        usuario
-                );
+        panelManager.mostrarPanelListaTurnosAdmin(usuario);
+    }
+
+    private void abrirEstadisticas(
+            String usuario) {
+
+        panelManager.mostrarPanelEstadisticasAdmin(usuario);
     }
 
     private void crearTurno(
@@ -751,26 +512,19 @@ public class PanelPrincipalAdmin extends JPanel {
                 JOptionPane.INFORMATION_MESSAGE
         );
 
-        panelManager
-                .mostrarPanelSeleccionOdontologo(
-                        usuario
-                );
+        panelManager.mostrarPanelSeleccionOdontologo(usuario);
     }
 
     private void cerrarSesion() {
-        int respuesta =
-                JOptionPane.showConfirmDialog(
-                        this,
-                        "¿Desea cerrar la sesión "
-                                + "administrativa?",
-                        "Cerrar sesión",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.QUESTION_MESSAGE
-                );
+        int respuesta = JOptionPane.showConfirmDialog(
+                this,
+                "¿Desea cerrar la sesión administrativa?",
+                "Cerrar sesión",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
 
-        if (respuesta
-                == JOptionPane.YES_OPTION) {
-
+        if (respuesta == JOptionPane.YES_OPTION) {
             panelManager.mostrarPanelLogin();
         }
     }
