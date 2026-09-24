@@ -1,6 +1,6 @@
 -- ============================================================
 -- Sistema de Gestion Odontologica
--- Esquema inicial para MySQL
+-- Esquema completo para instalaciones nuevas en MySQL
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS clinica_odontologica
@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS pacientes (
 
 -- ------------------------------------------------------------
 -- Odontologos
+-- La especialidad se guarda con el nombre tecnico del enum Java.
+-- Los horarios indican la jornada habitual del profesional.
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS odontologos (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -41,6 +43,11 @@ CREATE TABLE IF NOT EXISTS odontologos (
     apellido VARCHAR(100) NOT NULL,
     matricula VARCHAR(30) NOT NULL,
     edad INT NOT NULL,
+    especialidad VARCHAR(80) NOT NULL
+        DEFAULT 'ODONTOLOGIA_GENERAL',
+    hora_inicio TIME NOT NULL DEFAULT '08:00:00',
+    hora_fin TIME NOT NULL DEFAULT '20:00:00',
+    duracion_turno INT NOT NULL DEFAULT 30,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -50,7 +57,60 @@ CREATE TABLE IF NOT EXISTS odontologos (
         UNIQUE (matricula),
 
     CONSTRAINT chk_odontologos_edad
-        CHECK (edad >= 21 AND edad <= 100)
+        CHECK (edad >= 21 AND edad <= 100),
+
+    CONSTRAINT chk_odontologos_horario
+        CHECK (hora_fin > hora_inicio),
+
+    CONSTRAINT chk_odontologos_duracion
+        CHECK (
+            duracion_turno >= 15
+            AND duracion_turno <= 180
+            AND MOD(duracion_turno, 15) = 0
+        ),
+
+    CONSTRAINT chk_odontologos_especialidad
+        CHECK (
+            especialidad IN (
+                'ODONTOLOGIA_GENERAL',
+                'ORTODONCIA',
+                'ENDODONCIA',
+                'CIRUGIA',
+                'ODONTOPEDIATRIA',
+                'PERIODONCIA',
+                'PROTESIS'
+            )
+        )
+) ENGINE = InnoDB;
+
+-- ------------------------------------------------------------
+-- Dias de atencion de odontologos
+-- Un odontologo puede atender uno o varios dias por semana.
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS odontologo_dias_atencion (
+    odontologo_id BIGINT NOT NULL,
+    dia_semana VARCHAR(10) NOT NULL,
+
+    PRIMARY KEY (odontologo_id, dia_semana),
+
+    CONSTRAINT fk_dias_atencion_odontologo
+        FOREIGN KEY (odontologo_id)
+        REFERENCES odontologos(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT chk_dias_atencion_dia
+        CHECK (
+            dia_semana IN (
+                'MONDAY',
+                'TUESDAY',
+                'WEDNESDAY',
+                'THURSDAY',
+                'FRIDAY',
+                'SATURDAY',
+                'SUNDAY'
+            )
+        )
 ) ENGINE = InnoDB;
 
 -- ------------------------------------------------------------
@@ -90,6 +150,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- No se crea un indice UNIQUE para odontologo, fecha e inicio.
 -- La superposicion se valida considerando intervalos y estado.
 -- Esto permite reutilizar horarios de turnos cancelados.
+-- motivo_consulta es visible para el usuario y el administrador.
+-- observaciones contiene informacion administrativa interna.
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS turnos (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -106,6 +168,7 @@ CREATE TABLE IF NOT EXISTS turnos (
         'CANCELADO',
         'AUSENTE'
     ) NOT NULL DEFAULT 'PENDIENTE',
+    motivo_consulta VARCHAR(500),
     observaciones VARCHAR(500),
     fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -136,6 +199,8 @@ CREATE TABLE IF NOT EXISTS turnos (
     INDEX idx_turnos_odontologo (odontologo_id),
     INDEX idx_turnos_usuario (usuario_id),
     INDEX idx_turnos_fecha (fecha),
+    INDEX idx_turnos_estado (estado),
+    INDEX idx_turnos_fecha_estado (fecha, estado),
     INDEX idx_turnos_disponibilidad (
         odontologo_id,
         fecha,
@@ -146,6 +211,18 @@ CREATE TABLE IF NOT EXISTS turnos (
 ) ENGINE = InnoDB;
 
 -- ------------------------------------------------------------
+-- Datos iniciales
+-- ------------------------------------------------------------
+-- Este esquema no inserta un administrador predeterminado porque
+-- password_hash debe generarse con el algoritmo usado por la
+-- aplicacion. Cree el administrador desde el flujo seguro previsto
+-- por el proyecto o inserte un hash compatible ya generado.
+
+-- ------------------------------------------------------------
 -- Verificacion del esquema
 -- ------------------------------------------------------------
 SHOW TABLES;
+
+SHOW COLUMNS FROM odontologos;
+SHOW COLUMNS FROM odontologo_dias_atencion;
+SHOW COLUMNS FROM turnos;
