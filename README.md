@@ -454,12 +454,14 @@ Push
 
 ## Próximas mejoras
 
-- Incorporar capturas definitivas del sistema.
-- Agregar diagrama de arquitectura.
-- Agregar diagrama entidad relación.
-- Configurar integración continua con GitHub Actions.
 - Preparar una distribución pública versionada.
 - Publicar la primera release estable.
+
+## Licencia
+
+Este proyecto se distribuye bajo la licencia MIT.
+
+Consultá el archivo LICENSE para conocer los términos completos.
 
 ## Autor
 
