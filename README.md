@@ -1,6 +1,6 @@
 # Sistema de Gestión Odontológica
 
-[![Pruebas Maven](https://github.com/facuvita19/app-odontologos/actions/workflows/maven-tests.yml/badgeub.com/facuvita19/app-odontologos/actions/workflows/maven-tests.yml)
+[![Pruebas Maven](https://github.com/facuvita19/app-odontologos/actions/workflows/dge.svg](https://github.com/facuvita19/app-odontologos/actions/workflows/maven-tests.yml)
 
 Aplicación de escritorio desarrollada con Java Swing para gestionar pacientes, odontólogos, usuarios y turnos de una clínica odontológica.
 
