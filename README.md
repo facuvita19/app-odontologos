@@ -162,6 +162,11 @@ Base de datos MySQL
 
 Esta organización separa la interfaz, las reglas de negocio y la persistencia. Los servicios pueden probarse mediante implementaciones dobles de los DAO sin necesidad de conectarse a MySQL.
 
+Para consultar el diagrama completo y la explicación de cada capa:
+
+- [Arquarquitectura.md
+- [Modelo de datos](docs/modelo-datos.
+
 ## Estructura del proyecto
 
 ```text
@@ -191,6 +196,11 @@ app-odontologos/
 ├── pom.xml
 └── README.md
 ```
+## Documentación técnica
+
+- [Arquitectura del sistema](docs/lo-datos.md
+- [atabase/schema.sql
+- [Migraciones de la base de datos](
 
 ## Requisitos
 
