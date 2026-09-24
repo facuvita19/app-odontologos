@@ -41,18 +41,6 @@
     </dependencies>
 
     <build>
-        <sourceDirectory>src</sourceDirectory>
-        <testSourceDirectory>test</testSourceDirectory>
-
-        <resources>
-            <resource>
-                <directory>src</directory>
-                <includes>
-                    <include>images/**</include>
-                </includes>
-            </resource>
-        </resources>
-
         <finalName>app-odontologos</finalName>
 
         <plugins>
