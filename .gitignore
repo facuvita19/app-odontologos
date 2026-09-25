@@ -14,3 +14,8 @@ turnos.txt
 *.log
 *.tmp
 /bin/
+
+# Archivos generados del instalador
+installer/input/
+installer/output/
+installer/package/

@@ -1,0 +1,18 @@
+INSTALACION Y PRIMER INICIO
+============================
+
+1. Instale Sistema Odontologico.
+2. Al finalizar, abra la carpeta de instalacion.
+3. Copie database.properties.example.
+4. Renombre la copia como database.properties.
+5. Abra database.properties con el Bloc de notas.
+6. Complete la URL, el usuario y la contrasena local de MySQL.
+7. Ejecute database/schema.sql en MySQL si es una instalacion nueva.
+8. Configure la cuenta administrativa segun las instrucciones del README.
+9. Inicie la aplicacion desde el menu Inicio o el acceso directo.
+
+IMPORTANTE
+---------
+- No comparta database.properties porque contiene credenciales privadas.
+- La aplicacion requiere acceso a una instancia local o remota de MySQL.
+- El runtime de Java esta incluido en la instalacion.
